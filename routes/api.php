@@ -55,6 +55,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::delete('/comentarios/{comentario}', [ComentarioController::class, 'destroy']);
 
-        Route::apiResource('usuarios', UserController::class);
+        Route::apiResource('usuarios', UserController::class)->parameters(['usuarios' => 'user']);
     });
 });
