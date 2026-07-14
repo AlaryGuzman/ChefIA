@@ -39,6 +39,7 @@ class ComentarioController extends Controller
     // Actualizar un comentario existente
     public function update(Request $request, Comentario $comentario)
     {
+        $this->authorize('update', $comentario);
         $validated = $request->validate([
             'contenido' => 'required|string',
         ]);
@@ -51,6 +52,8 @@ class ComentarioController extends Controller
     // Eliminar un comentario
     public function destroy(Comentario $comentario)
     {
+        $this->authorize('delete', $comentario);
+
         $comentario->delete();
 
         return response()->json(['message' => 'Comentario eliminado correctamente'], 200);

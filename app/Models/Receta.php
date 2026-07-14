@@ -18,6 +18,13 @@ class Receta extends Model
         'pasos',
         'tiempo_preparacion',
         'imagen',
+        'es_premium',
+        'precio',
+    ];
+
+    protected $casts = [
+        'es_premium' => 'boolean',
+        'precio' => 'decimal:2',
     ];
 
     public function usuario()
@@ -38,5 +45,10 @@ class Receta extends Model
     public function favoritos()
     {
         return $this->hasMany(Favorito::class, 'receta_id');
+    }
+
+    public function compras()
+    {
+        return $this->hasMany(Compra::class, 'receta_id');
     }
 }

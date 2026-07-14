@@ -16,6 +16,7 @@ class RecetaController extends Controller
     }
 
     // Crear una nueva receta
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -27,6 +28,8 @@ class RecetaController extends Controller
             'pasos' => 'required|string',
             'tiempo_preparacion' => 'nullable|integer',
             'imagen' => 'nullable|string',
+            'es_premium' => 'sometimes|boolean',
+            'precio' => 'required_if:es_premium,true|nullable|numeric|min:0',
         ]);
 
         $receta = Receta::create($validated);
@@ -35,15 +38,43 @@ class RecetaController extends Controller
     }
 
     // Mostrar una receta específica
-    public function show(Receta $receta)
+
+    public function show(Request $request, Receta $receta)
     {
         $receta->load(['usuario', 'categoria', 'comentarios']);
+
+        // Si la receta es gratuita, se muestra completa
+        if (!$receta->es_premium) {
+            return response()->json($receta, 200);
+        }
+
+        $user = $request->user();  // null si es invitado (no autenticado)
+
+        $tieneAcceso = false;
+
+        if ($user) {
+            $esAutor = $receta->usuario_id === $user->id;
+            $esAdmin = $user->role === 'admin';
+            $yaComprada = $receta->compras()->where('usuario_id', $user->id)->exists();
+
+            $tieneAcceso = $esAutor || $esAdmin || $yaComprada;
+        }
+
+        // Si no tiene acceso, ocultamos ingredientes y pasos
+        if (!$tieneAcceso) {
+            $receta->makeHidden(['ingredientes', 'pasos']);
+            $receta->bloqueada = true;
+        }
+
         return response()->json($receta, 200);
     }
 
     // Actualizar una receta existente
+
     public function update(Request $request, Receta $receta)
     {
+        $this->authorize('update', $receta);
+
         $validated = $request->validate([
             'usuario_id' => 'sometimes|required|exists:users,id',
             'categoria_id' => 'sometimes|required|exists:categorias,id',
@@ -53,6 +84,8 @@ class RecetaController extends Controller
             'pasos' => 'sometimes|required|string',
             'tiempo_preparacion' => 'nullable|integer',
             'imagen' => 'nullable|string',
+            'es_premium' => 'sometimes|boolean',
+            'precio' => 'required_if:es_premium,true|nullable|numeric|min:0',
         ]);
 
         $receta->update($validated);
@@ -60,9 +93,10 @@ class RecetaController extends Controller
         return response()->json($receta, 200);
     }
 
-    // Eliminar una receta
     public function destroy(Receta $receta)
     {
+        $this->authorize('delete', $receta);
+
         $receta->delete();
 
         return response()->json(['message' => 'Receta eliminada correctamente'], 200);

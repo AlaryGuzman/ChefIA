@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoriaController;
 use App\Http\Controllers\Api\ComentarioController;
+use App\Http\Controllers\Api\CompraController;
 use App\Http\Controllers\Api\FavoritoController;
 use App\Http\Controllers\Api\RecetaController;
 use App\Http\Controllers\Api\UserController;
@@ -30,6 +31,11 @@ Route::get('/comentarios/{comentario}', [ComentarioController::class, 'show']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    // compras
+    Route::get('/compras', [CompraController::class, 'index']);
+    Route::post('/compras', [CompraController::class, 'store']);
+    Route::get('/compras/{compra}', [CompraController::class, 'show']);
 
     // Recetas: cualquier usuario autenticado puede crear
     Route::post('/recetas', [RecetaController::class, 'store']);
