@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AsistenteIAController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoriaController;
 use App\Http\Controllers\Api\ComentarioController;
@@ -36,6 +37,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/compras', [CompraController::class, 'index']);
     Route::post('/compras', [CompraController::class, 'store']);
     Route::get('/compras/{compra}', [CompraController::class, 'show']);
+
+    // Asistente IA
+    Route::post('/asistente/generar-receta', [AsistenteIAController::class, 'generarReceta']);
+    Route::post('/asistente/sugerir-sustitucion', [AsistenteIAController::class, 'sugerirSustitucion']);
+    Route::post('/asistente/preguntar', [AsistenteIAController::class, 'preguntar']);
 
     // Recetas: cualquier usuario autenticado puede crear
     Route::post('/recetas', [RecetaController::class, 'store']);
