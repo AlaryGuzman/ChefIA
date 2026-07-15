@@ -72,4 +72,31 @@ class CompraController extends Controller
 
         return response()->json($compra, 200);
     }
+
+    // Reporte de ventas (solo administrador)
+    public function reporte(Request $request)
+    {
+        $totalVentas = Compra::sum('precio_pagado');
+        $totalCompras = Compra::count();
+
+        $ventasPorReceta = Compra::selectRaw('receta_id, COUNT(*) as veces_comprada, SUM(precio_pagado) as total_generado')
+            ->with('receta:id,titulo,usuario_id')
+            ->groupBy('receta_id')
+            ->orderByDesc('total_generado')
+            ->get();
+
+        $comprasRecientes = Compra::with(['usuario:id,name,email', 'receta:id,titulo'])
+            ->latest()
+            ->take(20)
+            ->get();
+
+        return response()->json([
+            'resumen' => [
+                'total_ventas' => $totalVentas,
+                'total_compras' => $totalCompras,
+            ],
+            'ventas_por_receta' => $ventasPorReceta,
+            'compras_recientes' => $comprasRecientes,
+        ], 200);
+    }
 }

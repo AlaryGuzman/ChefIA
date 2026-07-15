@@ -66,6 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/categorias/{categoria}', [CategoriaController::class, 'destroy']);
 
         Route::delete('/comentarios/{comentario}', [ComentarioController::class, 'destroy']);
+        Route::get('/compras/reporte/ventas', [CompraController::class, 'reporte']);
 
         Route::apiResource('usuarios', UserController::class)->parameters(['usuarios' => 'user']);
     });
