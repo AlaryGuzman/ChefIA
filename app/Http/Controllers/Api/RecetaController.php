@@ -41,7 +41,7 @@ class RecetaController extends Controller
 
     public function show(Request $request, Receta $receta)
     {
-        $receta->load(['usuario', 'categoria', 'comentarios']);
+        $receta->load(['usuario', 'categoria', 'comentarios.usuario']);
 
         // Si la receta es gratuita, se muestra completa
         if (!$receta->es_premium) {
