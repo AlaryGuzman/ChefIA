@@ -47,6 +47,7 @@ class UserController extends Controller
             'name' => 'sometimes|required|string|max:255',
             'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . $user->id,
             'password' => 'sometimes|required|string|min:6',
+            'role' => 'sometimes|required|string|in:admin,usuario',
         ]);
 
         if (isset($validated['password'])) {
