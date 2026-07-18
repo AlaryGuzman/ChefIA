@@ -5,13 +5,21 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Receta;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class RecetaController extends Controller
 {
     // Listar todas las recetas
-    public function index()
+    public function index(Request $request)
     {
-        $recetas = Receta::with(['usuario', 'categoria'])->get();
+        $user = $this->userFromOptionalToken($request);
+
+        $recetas = Receta::with(['usuario', 'categoria'])
+            ->withCount(['favoritos', 'comentarios', 'compras'])
+            ->latest()
+            ->get()
+            ->map(fn (Receta $receta) => $this->prepareForUser($receta, $user));
+
         return response()->json($recetas, 200);
     }
 
@@ -20,7 +28,6 @@ class RecetaController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'usuario_id' => 'required|exists:users,id',
             'categoria_id' => 'required|exists:categorias,id',
             'titulo' => 'required|string|max:255',
             'descripcion' => 'nullable|string',
@@ -32,7 +39,13 @@ class RecetaController extends Controller
             'precio' => 'required_if:es_premium,true|nullable|numeric|min:0',
         ]);
 
-        $receta = Receta::create($validated);
+        $validated['usuario_id'] = $request->user()->id;
+
+        if (empty($validated['es_premium'])) {
+            $validated['precio'] = null;
+        }
+
+        $receta = Receta::create($validated)->load(['usuario', 'categoria']);
 
         return response()->json($receta, 201);
     }
@@ -41,30 +54,12 @@ class RecetaController extends Controller
 
     public function show(Request $request, Receta $receta)
     {
-        $receta->load(['usuario', 'categoria', 'comentarios.usuario']);
+        $user = $this->userFromOptionalToken($request);
 
-        // Si la receta es gratuita, se muestra completa
-        if (!$receta->es_premium) {
-            return response()->json($receta, 200);
-        }
+        $receta->load(['usuario', 'categoria', 'comentarios.usuario'])
+            ->loadCount(['favoritos', 'comentarios', 'compras']);
 
-        $user = $request->user();  // null si es invitado (no autenticado)
-
-        $tieneAcceso = false;
-
-        if ($user) {
-            $esAutor = $receta->usuario_id === $user->id;
-            $esAdmin = $user->role === 'admin';
-            $yaComprada = $receta->compras()->where('usuario_id', $user->id)->exists();
-
-            $tieneAcceso = $esAutor || $esAdmin || $yaComprada;
-        }
-
-        // Si no tiene acceso, ocultamos ingredientes y pasos
-        if (!$tieneAcceso) {
-            $receta->makeHidden(['ingredientes', 'pasos']);
-            $receta->bloqueada = true;
-        }
+        $this->prepareForUser($receta, $user);
 
         return response()->json($receta, 200);
     }
@@ -100,5 +95,43 @@ class RecetaController extends Controller
         $receta->delete();
 
         return response()->json(['message' => 'Receta eliminada correctamente'], 200);
+    }
+
+    private function userFromOptionalToken(Request $request)
+    {
+        if ($request->user()) {
+            return $request->user();
+        }
+
+        $header = $request->bearerToken();
+        if (!$header) {
+            return null;
+        }
+
+        $accessToken = PersonalAccessToken::findToken($header);
+
+        return $accessToken?->tokenable;
+    }
+
+    private function prepareForUser(Receta $receta, $user): Receta
+    {
+        $tieneAcceso = !$receta->es_premium;
+        $comprada = false;
+
+        if ($user) {
+            $esAutor = (int) $receta->usuario_id === (int) $user->id;
+            $esAdmin = $user->role === 'admin';
+            $comprada = $receta->compras()->where('usuario_id', $user->id)->exists();
+            $tieneAcceso = $tieneAcceso || $esAutor || $esAdmin || $comprada;
+        }
+
+        if (!$tieneAcceso) {
+            $receta->makeHidden(['ingredientes', 'pasos']);
+        }
+
+        $receta->bloqueada = !$tieneAcceso;
+        $receta->comprada = $comprada;
+
+        return $receta;
     }
 }

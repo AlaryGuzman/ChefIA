@@ -9,17 +9,16 @@ use Illuminate\Http\Request;
 
 class CompraController extends Controller
 {
-    // Listar las compras del usuario autenticado
     public function index(Request $request)
     {
-        $compras = Compra::with('receta')
+        $compras = Compra::with(['receta.usuario', 'receta.categoria'])
             ->where('usuario_id', $request->user()->id)
+            ->latest()
             ->get();
 
         return response()->json($compras, 200);
     }
 
-    // Simular la compra de una receta
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -27,33 +26,11 @@ class CompraController extends Controller
         ]);
 
         $receta = Receta::findOrFail($validated['receta_id']);
-        $usuario = $request->user();
+        [$compra, $error, $status] = $this->comprarUnaReceta($receta, $request->user());
 
-        // Validar que la receta sea premium
-        if (!$receta->es_premium) {
-            return response()->json(['message' => 'Esta receta es gratuita, no necesitas comprarla'], 400);
+        if ($error) {
+            return response()->json(['message' => $error], $status);
         }
-
-        // Validar que no sea el propio autor comprando su receta
-        if ($receta->usuario_id === $usuario->id) {
-            return response()->json(['message' => 'No puedes comprar tu propia receta'], 400);
-        }
-
-        // Validar que no la haya comprado ya
-        $yaComprada = Compra::where('usuario_id', $usuario->id)
-            ->where('receta_id', $receta->id)
-            ->first();
-
-        if ($yaComprada) {
-            return response()->json(['message' => 'Ya has comprado esta receta'], 409);
-        }
-
-        // Simulación de la compra (sin pasarela real de pago)
-        $compra = Compra::create([
-            'usuario_id' => $usuario->id,
-            'receta_id' => $receta->id,
-            'precio_pagado' => $receta->precio,
-        ]);
 
         return response()->json([
             'message' => 'Compra realizada correctamente',
@@ -61,19 +38,45 @@ class CompraController extends Controller
         ], 201);
     }
 
-    // Ver el detalle de una compra específica
+    public function storeMany(Request $request)
+    {
+        $validated = $request->validate([
+            'receta_ids' => 'required|array|min:1',
+            'receta_ids.*' => 'required|exists:recetas,id',
+        ]);
+
+        $compras = [];
+        $errores = [];
+
+        foreach (array_unique($validated['receta_ids']) as $recetaId) {
+            $receta = Receta::findOrFail($recetaId);
+            [$compra, $error] = $this->comprarUnaReceta($receta, $request->user());
+
+            if ($compra) {
+                $compras[] = $compra;
+            } else {
+                $errores[] = $error ?? 'No se pudo comprar una receta';
+            }
+        }
+
+        return response()->json([
+            'message' => count($compras) > 0 ? 'Compra simulada realizada' : 'No se pudo realizar la compra',
+            'compras' => $compras,
+            'errores' => $errores,
+        ], count($compras) > 0 ? 201 : 422);
+    }
+
     public function show(Request $request, Compra $compra)
     {
-        if ($compra->usuario_id !== $request->user()->id) {
+        if ($compra->usuario_id !== $request->user()->id && $request->user()->role !== 'admin') {
             return response()->json(['message' => 'No tienes permisos para ver esta compra'], 403);
         }
 
-        $compra->load('receta');
+        $compra->load(['receta.usuario', 'receta.categoria']);
 
         return response()->json($compra, 200);
     }
 
-    // Reporte de ventas (solo administrador)
     public function reporte(Request $request)
     {
         $totalVentas = Compra::sum('precio_pagado');
@@ -85,9 +88,9 @@ class CompraController extends Controller
             ->orderByDesc('total_generado')
             ->get();
 
-        $comprasRecientes = Compra::with(['usuario:id,name,email', 'receta:id,titulo'])
+        $comprasRecientes = Compra::with(['usuario:id,name,email', 'receta:id,titulo,precio,es_premium'])
             ->latest()
-            ->take(20)
+            ->take(50)
             ->get();
 
         return response()->json([
@@ -98,5 +101,39 @@ class CompraController extends Controller
             'ventas_por_receta' => $ventasPorReceta,
             'compras_recientes' => $comprasRecientes,
         ], 200);
+    }
+
+    public function destroy(Compra $compra)
+    {
+        $compra->delete();
+
+        return response()->json(['message' => 'Venta eliminada correctamente'], 200);
+    }
+
+    private function comprarUnaReceta(Receta $receta, $usuario): array
+    {
+        if (!$receta->es_premium) {
+            return [null, 'Esta receta es gratuita, no necesitas comprarla', 400];
+        }
+
+        if ((int) $receta->usuario_id === (int) $usuario->id) {
+            return [null, 'No puedes comprar tu propia receta', 400];
+        }
+
+        $yaComprada = Compra::where('usuario_id', $usuario->id)
+            ->where('receta_id', $receta->id)
+            ->first();
+
+        if ($yaComprada) {
+            return [null, 'Ya has comprado esta receta', 409];
+        }
+
+        $compra = Compra::create([
+            'usuario_id' => $usuario->id,
+            'receta_id' => $receta->id,
+            'precio_pagado' => $receta->precio,
+        ]);
+
+        return [$compra, null, 201];
     }
 }
