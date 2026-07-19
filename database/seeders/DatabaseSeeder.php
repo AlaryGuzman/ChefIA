@@ -39,6 +39,35 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        $editor = User::updateOrCreate(
+            ['email' => 'editor@chefia.com'],
+            [
+                'name' => 'editor',
+                'password' => Hash::make('123456'),
+                'role' => 'admin',
+            ]
+        );
+
+        $usuariosExtra = collect([
+            ['name' => 'ana', 'email' => 'ana@chefia.com'],
+            ['name' => 'luis', 'email' => 'luis@chefia.com'],
+            ['name' => 'maria', 'email' => 'maria@chefia.com'],
+            ['name' => 'carlos', 'email' => 'carlos@chefia.com'],
+            ['name' => 'sofia', 'email' => 'sofia@chefia.com'],
+            ['name' => 'diego', 'email' => 'diego@chefia.com'],
+        ])->mapWithKeys(function (array $datos) {
+            $modelo = User::updateOrCreate(
+                ['email' => $datos['email']],
+                [
+                    'name' => $datos['name'],
+                    'password' => Hash::make('123456'),
+                    'role' => 'usuario',
+                ]
+            );
+
+            return [$datos['name'] => $modelo];
+        });
+
         $categorias = collect([
             [
                 'nombre' => 'Desayunos',
@@ -170,6 +199,102 @@ class DatabaseSeeder extends Seeder
                 'es_premium' => false,
                 'precio' => null,
             ],
+            [
+                'usuario_id' => $usuariosExtra['ana']->id,
+                'categoria_id' => $categorias['Desayunos']->id,
+                'titulo' => 'Hot cakes de avena y platano',
+                'descripcion' => 'Desayuno suave y rapido con avena, platano maduro y canela.',
+                'ingredientes' => "Avena\nPlatano\nHuevo\nCanela\nLeche\nMiel",
+                'pasos' => "Licua avena, platano, huevo y leche.\nCocina porciones pequenas en sarten caliente.\nSirve con miel y canela.",
+                'tiempo_preparacion' => 15,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => false,
+                'precio' => null,
+            ],
+            [
+                'usuario_id' => $usuariosExtra['luis']->id,
+                'categoria_id' => $categorias['Comidas']->id,
+                'titulo' => 'Pozole rojo familiar',
+                'descripcion' => 'Pozole rojo con maiz cacahuazintle, carne suave y guarniciones frescas.',
+                'ingredientes' => "Maiz pozolero\nCarne de cerdo\nChile guajillo\nAjo\nRabano\nLechuga\nOregano",
+                'pasos' => "Cuece maiz y carne hasta suavizar.\nLicua chiles con ajo.\nAgrega la salsa al caldo y hierve.\nSirve con guarniciones.",
+                'tiempo_preparacion' => 85,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => false,
+                'precio' => null,
+            ],
+            [
+                'usuario_id' => $usuariosExtra['maria']->id,
+                'categoria_id' => $categorias['Saludable']->id,
+                'titulo' => 'Salmon en salsa de mango',
+                'descripcion' => 'Filete dorado con salsa fresca de mango, limon y chile suave.',
+                'ingredientes' => "Salmon\nMango\nLimon\nChile serrano\nCilantro\nAjo\nAceite de oliva",
+                'pasos' => "Dora el salmon con sal y ajo.\nPica mango, cilantro y chile.\nMezcla con limon.\nSirve la salsa sobre el pescado.",
+                'tiempo_preparacion' => 28,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => false,
+                'precio' => null,
+            ],
+            [
+                'usuario_id' => $usuariosExtra['carlos']->id,
+                'categoria_id' => $categorias['Rapidas']->id,
+                'titulo' => 'Tostadas de tinga express',
+                'descripcion' => 'Tinga de pollo con chipotle, cebolla y tostadas crujientes.',
+                'ingredientes' => "Pollo deshebrado\nJitomate\nChipotle\nCebolla\nTostadas\nCrema\nQueso",
+                'pasos' => "Sofrie cebolla.\nLicua jitomate con chipotle.\nCocina la salsa y agrega pollo.\nMonta las tostadas con crema y queso.",
+                'tiempo_preparacion' => 22,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => false,
+                'precio' => null,
+            ],
+            [
+                'usuario_id' => $usuariosExtra['sofia']->id,
+                'categoria_id' => $categorias['Postres']->id,
+                'titulo' => 'Gelatina mosaico cremosa',
+                'descripcion' => 'Postre colorido con cubos de gelatina y base cremosa de vainilla.',
+                'ingredientes' => "Gelatinas de sabores\nGrenetina\nLeche evaporada\nLeche condensada\nVainilla",
+                'pasos' => "Prepara gelatinas de colores y corta cubos.\nMezcla leches con grenetina hidratada.\nIntegra los cubos y refrigera.",
+                'tiempo_preparacion' => 30,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => false,
+                'precio' => null,
+            ],
+            [
+                'usuario_id' => $editor->id,
+                'categoria_id' => $categorias['Premium']->id,
+                'titulo' => 'Birria de res estilo Jalisco',
+                'descripcion' => 'Birria profunda con adobo de chiles secos, carne jugosa y consome especiado.',
+                'ingredientes' => "Carne de res\nChile guajillo\nChile ancho\nVinagre\nAjo\nComino\nLaurel",
+                'pasos' => "Tuesta e hidrata los chiles.\nLicua con especias y vinagre.\nMarina la carne.\nCocina lento hasta suavizar y sirve con consome.",
+                'tiempo_preparacion' => 140,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => true,
+                'precio' => 119.00,
+            ],
+            [
+                'usuario_id' => $admin->id,
+                'categoria_id' => $categorias['Premium']->id,
+                'titulo' => 'Mole negro oaxaqueno',
+                'descripcion' => 'Salsa compleja con chiles, especias, chocolate y tecnica tradicional.',
+                'ingredientes' => "Chile chilhuacle\nChile pasilla\nAjonjoli\nChocolate\nPlatano macho\nTortilla\nPollo",
+                'pasos' => "Tuesta chiles y especias con cuidado.\nMuele todo con caldo.\nFrie la pasta lentamente.\nCocina con pollo hasta lograr una salsa brillante.",
+                'tiempo_preparacion' => 160,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => true,
+                'precio' => 149.00,
+            ],
+            [
+                'usuario_id' => $usuariosExtra['diego']->id,
+                'categoria_id' => $categorias['Premium']->id,
+                'titulo' => 'Cheesecake de frutos rojos',
+                'descripcion' => 'Cheesecake cremoso con costra de galleta y salsa brillante de frutos rojos.',
+                'ingredientes' => "Queso crema\nGalletas\nMantequilla\nAzucar\nHuevos\nFrutos rojos\nVainilla",
+                'pasos' => "Prepara la base de galleta.\nBate queso, azucar y huevos.\nHornea a baja temperatura.\nCubre con salsa de frutos rojos.",
+                'tiempo_preparacion' => 75,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => true,
+                'precio' => 89.00,
+            ],
         ])->mapWithKeys(function (array $receta) {
             $modelo = Receta::updateOrCreate(
                 ['titulo' => $receta['titulo']],
@@ -200,6 +325,41 @@ class DatabaseSeeder extends Seeder
                 'receta_id' => $recetas['Bowl de quinoa y verduras']->id,
                 'contenido' => 'Muy buena opcion para comida ligera.',
             ],
+            [
+                'usuario_id' => $usuariosExtra['ana']->id,
+                'receta_id' => $recetas['Tacos de carne asada']->id,
+                'contenido' => 'Los hice para cenar y quedaron con mucho sabor.',
+            ],
+            [
+                'usuario_id' => $usuariosExtra['luis']->id,
+                'receta_id' => $recetas['Pasta cremosa con champinones']->id,
+                'contenido' => 'Excelente para salir del apuro entre semana.',
+            ],
+            [
+                'usuario_id' => $usuariosExtra['maria']->id,
+                'receta_id' => $recetas['Salmon en salsa de mango']->id,
+                'contenido' => 'La salsa de mango levanta muchisimo el plato.',
+            ],
+            [
+                'usuario_id' => $usuariosExtra['carlos']->id,
+                'receta_id' => $recetas['Ramen casero especial']->id,
+                'contenido' => 'Vale la pena comprarla, el caldo queda intenso.',
+            ],
+            [
+                'usuario_id' => $usuariosExtra['sofia']->id,
+                'receta_id' => $recetas['Birria de res estilo Jalisco']->id,
+                'contenido' => 'La deje lenta y el consome salio buenisimo.',
+            ],
+            [
+                'usuario_id' => $usuariosExtra['diego']->id,
+                'receta_id' => $recetas['Gelatina mosaico cremosa']->id,
+                'contenido' => 'Queda muy vistosa para reuniones familiares.',
+            ],
+            [
+                'usuario_id' => $editor->id,
+                'receta_id' => $recetas['Mole negro oaxaqueno']->id,
+                'contenido' => 'Receta larga, pero perfecta para probar una tecnica mas seria.',
+            ],
         ];
 
         foreach ($comentarios as $comentario) {
@@ -210,18 +370,48 @@ class DatabaseSeeder extends Seeder
             ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Chilaquiles verdes con pollo']->id],
             ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Ramen casero especial']->id],
             ['usuario_id' => $admin->id, 'receta_id' => $recetas['Tacos de carne asada']->id],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Chilaquiles verdes con pollo']->id],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Pay de limon frio']->id],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Cheesecake de frutos rojos']->id],
+            ['usuario_id' => $usuariosExtra['luis']->id, 'receta_id' => $recetas['Tacos de carne asada']->id],
+            ['usuario_id' => $usuariosExtra['luis']->id, 'receta_id' => $recetas['Pozole rojo familiar']->id],
+            ['usuario_id' => $usuariosExtra['luis']->id, 'receta_id' => $recetas['Birria de res estilo Jalisco']->id],
+            ['usuario_id' => $usuariosExtra['maria']->id, 'receta_id' => $recetas['Salmon en salsa de mango']->id],
+            ['usuario_id' => $usuariosExtra['maria']->id, 'receta_id' => $recetas['Bowl de quinoa y verduras']->id],
+            ['usuario_id' => $usuariosExtra['maria']->id, 'receta_id' => $recetas['Mole negro oaxaqueno']->id],
+            ['usuario_id' => $usuariosExtra['carlos']->id, 'receta_id' => $recetas['Pasta cremosa con champinones']->id],
+            ['usuario_id' => $usuariosExtra['carlos']->id, 'receta_id' => $recetas['Tostadas de tinga express']->id],
+            ['usuario_id' => $usuariosExtra['carlos']->id, 'receta_id' => $recetas['Ramen casero especial']->id],
+            ['usuario_id' => $usuariosExtra['sofia']->id, 'receta_id' => $recetas['Gelatina mosaico cremosa']->id],
+            ['usuario_id' => $usuariosExtra['sofia']->id, 'receta_id' => $recetas['Asado de boda estilo ChefIA']->id],
+            ['usuario_id' => $usuariosExtra['diego']->id, 'receta_id' => $recetas['Hot cakes de avena y platano']->id],
+            ['usuario_id' => $usuariosExtra['diego']->id, 'receta_id' => $recetas['Ensalada de atun con aguacate']->id],
+            ['usuario_id' => $editor->id, 'receta_id' => $recetas['Salmon en salsa de mango']->id],
+            ['usuario_id' => $editor->id, 'receta_id' => $recetas['Pozole rojo familiar']->id],
         ];
 
         foreach ($favoritos as $favorito) {
             Favorito::updateOrCreate($favorito, $favorito);
         }
 
-        Compra::updateOrCreate(
-            [
-                'usuario_id' => $usuario->id,
-                'receta_id' => $recetas['Ramen casero especial']->id,
-            ],
-            ['precio_pagado' => 79.00]
-        );
+        $compras = [
+            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Ramen casero especial']->id, 'precio_pagado' => 79.00],
+            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Asado de boda estilo ChefIA']->id, 'precio_pagado' => 99.00],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Cheesecake de frutos rojos']->id, 'precio_pagado' => 89.00],
+            ['usuario_id' => $usuariosExtra['luis']->id, 'receta_id' => $recetas['Birria de res estilo Jalisco']->id, 'precio_pagado' => 119.00],
+            ['usuario_id' => $usuariosExtra['maria']->id, 'receta_id' => $recetas['Mole negro oaxaqueno']->id, 'precio_pagado' => 149.00],
+            ['usuario_id' => $usuariosExtra['carlos']->id, 'receta_id' => $recetas['Ramen casero especial']->id, 'precio_pagado' => 79.00],
+            ['usuario_id' => $usuariosExtra['sofia']->id, 'receta_id' => $recetas['Asado de boda estilo ChefIA']->id, 'precio_pagado' => 99.00],
+        ];
+
+        foreach ($compras as $compra) {
+            Compra::updateOrCreate(
+                [
+                    'usuario_id' => $compra['usuario_id'],
+                    'receta_id' => $compra['receta_id'],
+                ],
+                ['precio_pagado' => $compra['precio_pagado']]
+            );
+        }
     }
 }

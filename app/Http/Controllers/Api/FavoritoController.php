@@ -3,15 +3,37 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Compra;
 use App\Models\Favorito;
+use App\Models\Receta;
 use Illuminate\Http\Request;
 
 class FavoritoController extends Controller
 {
     // Listar todos los favoritos
-    public function index()
+    public function index(Request $request)
     {
-        $favoritos = Favorito::with(['usuario', 'receta'])->get();
+        $user = $request->user();
+        $favoritos = Favorito::with([
+            'usuario',
+            'receta.usuario',
+            'receta.categoria',
+        ])
+            ->latest()
+            ->get();
+
+        $favoritos->each(function (Favorito $favorito) {
+            if ($favorito->receta) {
+                $favorito->receta->loadCount(['favoritos', 'comentarios', 'compras']);
+            }
+        });
+
+        $favoritos->each(function (Favorito $favorito) use ($user) {
+            if ($favorito->receta) {
+                $favorito->setRelation('receta', $this->prepararReceta($favorito->receta, $user));
+            }
+        });
+
         return response()->json($favoritos, 200);
     }
 
@@ -19,9 +41,9 @@ class FavoritoController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'usuario_id' => 'required|exists:users,id',
             'receta_id' => 'required|exists:recetas,id',
         ]);
+        $validated['usuario_id'] = $request->user()->id;
 
         // Evitar duplicados: mismo usuario + misma receta
         $existe = Favorito::where('usuario_id', $validated['usuario_id'])
@@ -33,14 +55,20 @@ class FavoritoController extends Controller
         }
 
         $favorito = Favorito::create($validated);
+        $favorito->load(['usuario', 'receta.usuario', 'receta.categoria']);
+        $favorito->receta?->loadCount(['favoritos', 'comentarios', 'compras']);
+        $favorito->setRelation('receta', $this->prepararReceta($favorito->receta, $request->user()));
 
         return response()->json($favorito, 201);
     }
 
     // Mostrar un favorito específico
-    public function show(Favorito $favorito)
+    public function show(Request $request, Favorito $favorito)
     {
-        $favorito->load(['usuario', 'receta']);
+        $favorito->load(['usuario', 'receta.usuario', 'receta.categoria']);
+        $favorito->receta?->loadCount(['favoritos', 'comentarios', 'compras']);
+        $favorito->setRelation('receta', $this->prepararReceta($favorito->receta, $request->user()));
+
         return response()->json($favorito, 200);
     }
 
@@ -50,5 +78,32 @@ class FavoritoController extends Controller
         $favorito->delete();
 
         return response()->json(['message' => 'Receta eliminada de favoritos'], 200);
+    }
+
+    private function prepararReceta(?Receta $receta, $user): ?Receta
+    {
+        if (!$receta) {
+            return null;
+        }
+
+        $comprada = $user
+            ? Compra::where('usuario_id', $user->id)
+                ->where('receta_id', $receta->id)
+                ->exists()
+            : false;
+
+        $esPropia = $user && (int) $receta->usuario_id === (int) $user->id;
+        $esAdmin = $user && $user->role === 'admin';
+        $bloqueada = $receta->es_premium && !$comprada && !$esPropia && !$esAdmin;
+
+        if ($bloqueada) {
+            $receta->ingredientes = null;
+            $receta->pasos = null;
+        }
+
+        $receta->setAttribute('bloqueada', $bloqueada);
+        $receta->setAttribute('comprada', $comprada);
+
+        return $receta;
     }
 }
