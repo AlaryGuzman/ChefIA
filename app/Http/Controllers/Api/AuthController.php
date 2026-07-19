@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
@@ -16,7 +15,11 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users,email',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:6|confirmed',
+        ], [
+            'email.unique' => 'Ese correo ya esta registrado.',
+            'password.confirmed' => 'Las contrasenas no coinciden.',
+            'password.min' => 'La contrasena debe tener al menos 6 caracteres.',
         ]);
 
         $user = User::create([
@@ -45,9 +48,9 @@ class AuthController extends Controller
         $user = User::where('email', $validated['email'])->first();
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Las credenciales proporcionadas son incorrectas.'],
-            ]);
+            return response()->json([
+                'message' => 'No pudimos iniciar sesion. Revisa tus datos o contacta al administrador.',
+            ], 422);
         }
 
         if ($user->suspended_until && $user->suspended_until->isPast() && !$user->suspended_indefinitely) {
@@ -61,9 +64,7 @@ class AuthController extends Controller
 
         if ($user->suspended_indefinitely || ($user->suspended_until && $user->suspended_until->isFuture())) {
             return response()->json([
-                'message' => $user->suspended_indefinitely
-                    ? 'Tu cuenta esta suspendida de forma indefinida.'
-                    : 'Tu cuenta esta suspendida hasta ' . $user->suspended_until->format('d/m/Y H:i') . '.',
+                'message' => 'No pudimos iniciar sesion. Revisa tus datos o contacta al administrador.',
             ], 403);
         }
 
@@ -96,14 +97,28 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . $user->id,
-            'password' => 'nullable|string|min:6',
+            'current_password' => 'required_with:password|nullable|string',
+            'password' => 'nullable|string|min:6|confirmed',
+        ], [
+            'email.unique' => 'Ese correo ya esta registrado.',
+            'current_password.required_with' => 'Para cambiar tu contrasena debes escribir tu contrasena actual.',
+            'password.confirmed' => 'La nueva contrasena y la confirmacion no coinciden.',
+            'password.min' => 'La nueva contrasena debe tener al menos 6 caracteres.',
         ]);
 
         if (empty($validated['password'])) {
             unset($validated['password']);
         } else {
+            if (!Hash::check($validated['current_password'] ?? '', $user->password)) {
+                return response()->json([
+                    'message' => 'La contrasena actual no es correcta.',
+                ], 422);
+            }
+
             $validated['password'] = Hash::make($validated['password']);
         }
+
+        unset($validated['current_password'], $validated['password_confirmation']);
 
         $user->update($validated);
 
