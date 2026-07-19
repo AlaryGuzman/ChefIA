@@ -50,6 +50,23 @@ class AuthController extends Controller
             ]);
         }
 
+        if ($user->suspended_until && $user->suspended_until->isPast() && !$user->suspended_indefinitely) {
+            $user->update([
+                'suspended_until' => null,
+                'suspended_indefinitely' => false,
+                'suspension_reason' => null,
+            ]);
+            $user = $user->fresh();
+        }
+
+        if ($user->suspended_indefinitely || ($user->suspended_until && $user->suspended_until->isFuture())) {
+            return response()->json([
+                'message' => $user->suspended_indefinitely
+                    ? 'Tu cuenta esta suspendida de forma indefinida.'
+                    : 'Tu cuenta esta suspendida hasta ' . $user->suspended_until->format('d/m/Y H:i') . '.',
+            ], 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([

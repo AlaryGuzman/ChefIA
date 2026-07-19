@@ -12,7 +12,7 @@ class UserController extends Controller
     // Listar todos los usuarios
     public function index()
     {
-        $users = User::all();
+        $users = User::latest()->get();
         return response()->json($users, 200);
     }
 
@@ -24,6 +24,9 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users,email',
             'password' => 'required|string|min:6',
             'role' => 'required|string|in:admin,usuario',
+            'suspended_until' => 'nullable|date',
+            'suspended_indefinitely' => 'sometimes|boolean',
+            'suspension_reason' => 'nullable|string|max:255',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
@@ -48,13 +51,46 @@ class UserController extends Controller
             'email' => 'sometimes|required|string|email|max:255|unique:users,email,' . $user->id,
             'password' => 'sometimes|required|string|min:6',
             'role' => 'sometimes|required|string|in:admin,usuario',
+            'suspended_until' => 'nullable|date',
+            'suspended_indefinitely' => 'sometimes|boolean',
+            'suspension_reason' => 'nullable|string|max:255',
         ]);
+
+        if (
+            $request->user()?->id === $user->id
+            && (
+                ($validated['suspended_indefinitely'] ?? false)
+                || !empty($validated['suspended_until'])
+            )
+        ) {
+            return response()->json(['message' => 'No puedes suspender tu propia cuenta.'], 422);
+        }
 
         if (isset($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         }
 
+        if (($validated['suspended_indefinitely'] ?? false) === true) {
+            $validated['suspended_until'] = null;
+        }
+
+        if (array_key_exists('suspended_until', $validated) && empty($validated['suspended_until'])) {
+            $validated['suspended_until'] = null;
+        }
+
+        if (
+            array_key_exists('suspended_until', $validated)
+            && $validated['suspended_until'] === null
+            && !($validated['suspended_indefinitely'] ?? false)
+        ) {
+            $validated['suspension_reason'] = null;
+        }
+
         $user->update($validated);
+
+        if ($user->suspended_indefinitely || ($user->suspended_until && $user->suspended_until->isFuture())) {
+            $user->tokens()->delete();
+        }
 
         return response()->json($user, 200);
     }
