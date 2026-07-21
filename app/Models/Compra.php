@@ -13,6 +13,9 @@ class Compra extends Model
         'usuario_id',
         'receta_id',
         'precio_pagado',
+        'metodo_pago',
+        'tarjeta_ultimos4',
+        'referencia_pago',
     ];
 
     protected $casts = [

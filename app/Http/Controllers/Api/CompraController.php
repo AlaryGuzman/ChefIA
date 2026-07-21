@@ -23,10 +23,14 @@ class CompraController extends Controller
     {
         $validated = $request->validate([
             'receta_id' => 'required|exists:recetas,id',
+            'tarjeta.numero' => 'nullable|string|min:12|max:23',
+            'tarjeta.nombre' => 'nullable|string|max:120',
+            'tarjeta.expiracion' => 'nullable|string|max:7',
+            'tarjeta.cvv' => 'nullable|string|min:3|max:4',
         ]);
 
         $receta = Receta::findOrFail($validated['receta_id']);
-        [$compra, $error, $status] = $this->comprarUnaReceta($receta, $request->user());
+        [$compra, $error, $status] = $this->comprarUnaReceta($receta, $request->user(), $this->datosPago($request));
 
         if ($error) {
             return response()->json(['message' => $error], $status);
@@ -43,14 +47,19 @@ class CompraController extends Controller
         $validated = $request->validate([
             'receta_ids' => 'required|array|min:1',
             'receta_ids.*' => 'required|exists:recetas,id',
+            'tarjeta.numero' => 'nullable|string|min:12|max:23',
+            'tarjeta.nombre' => 'nullable|string|max:120',
+            'tarjeta.expiracion' => 'nullable|string|max:7',
+            'tarjeta.cvv' => 'nullable|string|min:3|max:4',
         ]);
 
         $compras = [];
         $errores = [];
+        $datosPago = $this->datosPago($request);
 
         foreach (array_unique($validated['receta_ids']) as $recetaId) {
             $receta = Receta::findOrFail($recetaId);
-            [$compra, $error] = $this->comprarUnaReceta($receta, $request->user());
+            [$compra, $error] = $this->comprarUnaReceta($receta, $request->user(), $datosPago);
 
             if ($compra) {
                 $compras[] = $compra;
@@ -110,7 +119,18 @@ class CompraController extends Controller
         return response()->json(['message' => 'Venta eliminada correctamente'], 200);
     }
 
-    private function comprarUnaReceta(Receta $receta, $usuario): array
+    private function datosPago(Request $request): array
+    {
+        $numero = preg_replace('/\D+/', '', (string) $request->input('tarjeta.numero', ''));
+
+        return [
+            'metodo_pago' => 'Tarjeta simulada',
+            'tarjeta_ultimos4' => $numero ? substr($numero, -4) : null,
+            'referencia_pago' => 'CHF-' . now()->format('YmdHis') . '-' . random_int(1000, 9999),
+        ];
+    }
+
+    private function comprarUnaReceta(Receta $receta, $usuario, array $datosPago = []): array
     {
         if (!$receta->es_premium) {
             return [null, 'Esta receta es gratuita, no necesitas comprarla', 400];
@@ -132,6 +152,9 @@ class CompraController extends Controller
             'usuario_id' => $usuario->id,
             'receta_id' => $receta->id,
             'precio_pagado' => $receta->precio,
+            'metodo_pago' => $datosPago['metodo_pago'] ?? 'Tarjeta simulada',
+            'tarjeta_ultimos4' => $datosPago['tarjeta_ultimos4'] ?? null,
+            'referencia_pago' => $datosPago['referencia_pago'] ?? null,
         ]);
 
         return [$compra, null, 201];

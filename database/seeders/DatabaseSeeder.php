@@ -51,7 +51,6 @@ class DatabaseSeeder extends Seeder
         $usuariosExtra = collect([
             ['name' => 'ana', 'email' => 'ana@chefia.com'],
             ['name' => 'luis', 'email' => 'luis@chefia.com'],
-            ['name' => 'maria', 'email' => 'maria@chefia.com'],
             ['name' => 'carlos', 'email' => 'carlos@chefia.com'],
             ['name' => 'sofia', 'email' => 'sofia@chefia.com'],
             ['name' => 'diego', 'email' => 'diego@chefia.com'],
@@ -66,6 +65,23 @@ class DatabaseSeeder extends Seeder
             );
 
             return [$datos['name'] => $modelo];
+        });
+
+        collect([
+            ['name' => 'maria', 'email' => 'maria@chefia.com'],
+            ['name' => 'david', 'email' => 'david@chefia.com'],
+            ['name' => 'alex', 'email' => 'alex@chefia.com'],
+            ['name' => 'denis', 'email' => 'denis@chefia.com'],
+            ['name' => 'alary', 'email' => 'alary@chefia.com'],
+        ])->each(function (array $datos) {
+            User::updateOrCreate(
+                ['email' => $datos['email']],
+                [
+                    'name' => $datos['name'],
+                    'password' => Hash::make('123456'),
+                    'role' => 'usuario',
+                ]
+            );
         });
 
         $categorias = collect([
@@ -224,7 +240,7 @@ class DatabaseSeeder extends Seeder
                 'precio' => null,
             ],
             [
-                'usuario_id' => $usuariosExtra['maria']->id,
+                'usuario_id' => $usuariosExtra['ana']->id,
                 'categoria_id' => $categorias['Saludable']->id,
                 'titulo' => 'Salmon en salsa de mango',
                 'descripcion' => 'Filete dorado con salsa fresca de mango, limon y chile suave.',
@@ -295,6 +311,126 @@ class DatabaseSeeder extends Seeder
                 'es_premium' => true,
                 'precio' => 89.00,
             ],
+            [
+                'usuario_id' => $usuariosExtra['ana']->id,
+                'categoria_id' => $categorias['Desayunos']->id,
+                'titulo' => 'Molletes crujientes con pico de gallo',
+                'descripcion' => 'Bolillo dorado con frijoles, queso fundido y pico de gallo fresco.',
+                'ingredientes' => "Bolillo\nFrijoles refritos\nQueso manchego\nJitomate\nCebolla\nCilantro\nChile serrano",
+                'pasos' => "Abre el bolillo y unta frijoles.\nAgrega queso y hornea hasta gratinar.\nMezcla pico de gallo y sirve encima.",
+                'tiempo_preparacion' => 16,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => false,
+                'precio' => null,
+            ],
+            [
+                'usuario_id' => $usuariosExtra['luis']->id,
+                'categoria_id' => $categorias['Rapidas']->id,
+                'titulo' => 'Quesadillas de flor de calabaza',
+                'descripcion' => 'Quesadillas suaves con flor de calabaza, epazote y queso Oaxaca.',
+                'ingredientes' => "Tortillas\nFlor de calabaza\nQueso Oaxaca\nEpazote\nCebolla\nAceite",
+                'pasos' => "Sofrie cebolla con flor de calabaza.\nAgrega epazote.\nRellena tortillas con queso y cocina hasta fundir.",
+                'tiempo_preparacion' => 18,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => false,
+                'precio' => null,
+            ],
+            [
+                'usuario_id' => $usuariosExtra['carlos']->id,
+                'categoria_id' => $categorias['Comidas']->id,
+                'titulo' => 'Arroz rojo con verduras',
+                'descripcion' => 'Arroz casero con jitomate, zanahoria, chicharos y caldo ligero.',
+                'ingredientes' => "Arroz\nJitomate\nZanahoria\nChicharos\nAjo\nCebolla\nCaldo",
+                'pasos' => "Lava el arroz y sofrie.\nLicua jitomate con ajo y cebolla.\nAgrega caldo y verduras.\nCocina tapado hasta secar.",
+                'tiempo_preparacion' => 32,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => false,
+                'precio' => null,
+            ],
+            [
+                'usuario_id' => $usuariosExtra['sofia']->id,
+                'categoria_id' => $categorias['Saludable']->id,
+                'titulo' => 'Wrap integral de pollo',
+                'descripcion' => 'Wrap ligero con pollo, vegetales crujientes y aderezo de yogur.',
+                'ingredientes' => "Tortilla integral\nPechuga de pollo\nLechuga\nPepino\nZanahoria\nYogur\nLimon",
+                'pasos' => "Dora el pollo en tiras.\nMezcla yogur con limon.\nRellena la tortilla con vegetales, pollo y aderezo.",
+                'tiempo_preparacion' => 24,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => false,
+                'precio' => null,
+            ],
+            [
+                'usuario_id' => $usuariosExtra['diego']->id,
+                'categoria_id' => $categorias['Postres']->id,
+                'titulo' => 'Brownies de cacao intenso',
+                'descripcion' => 'Brownies humedos con cacao, nuez y centro ligeramente cremoso.',
+                'ingredientes' => "Cacao\nHarina\nAzucar\nHuevos\nMantequilla\nNuez\nVainilla",
+                'pasos' => "Derrite mantequilla y mezcla con cacao.\nAgrega huevos, azucar y harina.\nHornea hasta que el centro quede humedo.",
+                'tiempo_preparacion' => 40,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => false,
+                'precio' => null,
+            ],
+            [
+                'usuario_id' => $editor->id,
+                'categoria_id' => $categorias['Premium']->id,
+                'titulo' => 'Cochinita pibil lenta',
+                'descripcion' => 'Cerdo marinado en achiote, naranja agria y especias con coccion lenta.',
+                'ingredientes' => "Carne de cerdo\nAchiote\nNaranja agria\nAjo\nLaurel\nCebolla morada\nHabanero",
+                'pasos' => "Licua achiote con naranja y especias.\nMarina la carne.\nEnvuelve y cocina lento hasta deshebrar.\nSirve con cebolla encurtida.",
+                'tiempo_preparacion' => 180,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => true,
+                'precio' => 129.00,
+            ],
+            [
+                'usuario_id' => $admin->id,
+                'categoria_id' => $categorias['Premium']->id,
+                'titulo' => 'Risotto de hongos al parmesano',
+                'descripcion' => 'Arroz cremoso con hongos salteados, caldo caliente y queso parmesano.',
+                'ingredientes' => "Arroz arborio\nHongos\nCaldo\nVino blanco\nParmesano\nMantequilla\nCebolla",
+                'pasos' => "Sofrie cebolla y arroz.\nAgrega vino y caldo poco a poco.\nSaltea hongos.\nTermina con mantequilla y parmesano.",
+                'tiempo_preparacion' => 48,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => true,
+                'precio' => 109.00,
+            ],
+            [
+                'usuario_id' => $usuariosExtra['ana']->id,
+                'categoria_id' => $categorias['Premium']->id,
+                'titulo' => 'Tarta fina de manzana',
+                'descripcion' => 'Postre elegante con masa crujiente, manzana laminada y brillo de miel.',
+                'ingredientes' => "Masa hojaldre\nManzanas\nAzucar\nCanela\nMiel\nMantequilla\nLimon",
+                'pasos' => "Extiende la masa.\nAcomoda manzana laminada.\nBarniza con mantequilla, azucar y canela.\nHornea y termina con miel.",
+                'tiempo_preparacion' => 62,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => true,
+                'precio' => 69.00,
+            ],
+            [
+                'usuario_id' => $usuariosExtra['luis']->id,
+                'categoria_id' => $categorias['Premium']->id,
+                'titulo' => 'Costillas glaseadas con tamarindo',
+                'descripcion' => 'Costillas suaves con glaseado dulce, acido y picante de tamarindo.',
+                'ingredientes' => "Costillas de cerdo\nTamarindo\nPiloncillo\nChile de arbol\nAjo\nSoya\nVinagre",
+                'pasos' => "Cocina las costillas hasta suavizar.\nReduce tamarindo con piloncillo, chile y soya.\nBarniza y hornea hasta caramelizar.",
+                'tiempo_preparacion' => 120,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => true,
+                'precio' => 139.00,
+            ],
+            [
+                'usuario_id' => $usuariosExtra['carlos']->id,
+                'categoria_id' => $categorias['Premium']->id,
+                'titulo' => 'Enchiladas suizas gratinadas',
+                'descripcion' => 'Enchiladas cremosas con salsa verde, pollo y gratinado dorado.',
+                'ingredientes' => "Tortillas\nPollo deshebrado\nTomatillo\nCrema\nQueso manchego\nCilantro\nCebolla",
+                'pasos' => "Prepara salsa verde cremosa.\nRellena tortillas con pollo.\nBaña con salsa, cubre con queso y gratina.",
+                'tiempo_preparacion' => 52,
+                'imagen' => '/img/fondo-login.webp',
+                'es_premium' => true,
+                'precio' => 95.00,
+            ],
         ])->mapWithKeys(function (array $receta) {
             $modelo = Receta::updateOrCreate(
                 ['titulo' => $receta['titulo']],
@@ -336,7 +472,7 @@ class DatabaseSeeder extends Seeder
                 'contenido' => 'Excelente para salir del apuro entre semana.',
             ],
             [
-                'usuario_id' => $usuariosExtra['maria']->id,
+                'usuario_id' => $usuariosExtra['ana']->id,
                 'receta_id' => $recetas['Salmon en salsa de mango']->id,
                 'contenido' => 'La salsa de mango levanta muchisimo el plato.',
             ],
@@ -360,6 +496,26 @@ class DatabaseSeeder extends Seeder
                 'receta_id' => $recetas['Mole negro oaxaqueno']->id,
                 'contenido' => 'Receta larga, pero perfecta para probar una tecnica mas seria.',
             ],
+            [
+                'usuario_id' => $admin->id,
+                'receta_id' => $recetas['Molletes crujientes con pico de gallo']->id,
+                'contenido' => 'Buenisimos para desayunar sin complicarse.',
+            ],
+            [
+                'usuario_id' => $usuario->id,
+                'receta_id' => $recetas['Quesadillas de flor de calabaza']->id,
+                'contenido' => 'El epazote le da un aroma muy casero.',
+            ],
+            [
+                'usuario_id' => $usuariosExtra['sofia']->id,
+                'receta_id' => $recetas['Risotto de hongos al parmesano']->id,
+                'contenido' => 'Queda muy cremoso si agregas el caldo poco a poco.',
+            ],
+            [
+                'usuario_id' => $usuariosExtra['diego']->id,
+                'receta_id' => $recetas['Costillas glaseadas con tamarindo']->id,
+                'contenido' => 'La salsa de tamarindo queda intensa y brillante.',
+            ],
         ];
 
         foreach ($comentarios as $comentario) {
@@ -376,9 +532,9 @@ class DatabaseSeeder extends Seeder
             ['usuario_id' => $usuariosExtra['luis']->id, 'receta_id' => $recetas['Tacos de carne asada']->id],
             ['usuario_id' => $usuariosExtra['luis']->id, 'receta_id' => $recetas['Pozole rojo familiar']->id],
             ['usuario_id' => $usuariosExtra['luis']->id, 'receta_id' => $recetas['Birria de res estilo Jalisco']->id],
-            ['usuario_id' => $usuariosExtra['maria']->id, 'receta_id' => $recetas['Salmon en salsa de mango']->id],
-            ['usuario_id' => $usuariosExtra['maria']->id, 'receta_id' => $recetas['Bowl de quinoa y verduras']->id],
-            ['usuario_id' => $usuariosExtra['maria']->id, 'receta_id' => $recetas['Mole negro oaxaqueno']->id],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Salmon en salsa de mango']->id],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Bowl de quinoa y verduras']->id],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Mole negro oaxaqueno']->id],
             ['usuario_id' => $usuariosExtra['carlos']->id, 'receta_id' => $recetas['Pasta cremosa con champinones']->id],
             ['usuario_id' => $usuariosExtra['carlos']->id, 'receta_id' => $recetas['Tostadas de tinga express']->id],
             ['usuario_id' => $usuariosExtra['carlos']->id, 'receta_id' => $recetas['Ramen casero especial']->id],
@@ -388,6 +544,16 @@ class DatabaseSeeder extends Seeder
             ['usuario_id' => $usuariosExtra['diego']->id, 'receta_id' => $recetas['Ensalada de atun con aguacate']->id],
             ['usuario_id' => $editor->id, 'receta_id' => $recetas['Salmon en salsa de mango']->id],
             ['usuario_id' => $editor->id, 'receta_id' => $recetas['Pozole rojo familiar']->id],
+            ['usuario_id' => $admin->id, 'receta_id' => $recetas['Molletes crujientes con pico de gallo']->id],
+            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Quesadillas de flor de calabaza']->id],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Arroz rojo con verduras']->id],
+            ['usuario_id' => $usuariosExtra['luis']->id, 'receta_id' => $recetas['Wrap integral de pollo']->id],
+            ['usuario_id' => $usuariosExtra['carlos']->id, 'receta_id' => $recetas['Brownies de cacao intenso']->id],
+            ['usuario_id' => $usuariosExtra['sofia']->id, 'receta_id' => $recetas['Cochinita pibil lenta']->id],
+            ['usuario_id' => $usuariosExtra['diego']->id, 'receta_id' => $recetas['Risotto de hongos al parmesano']->id],
+            ['usuario_id' => $editor->id, 'receta_id' => $recetas['Tarta fina de manzana']->id],
+            ['usuario_id' => $admin->id, 'receta_id' => $recetas['Costillas glaseadas con tamarindo']->id],
+            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Enchiladas suizas gratinadas']->id],
         ];
 
         foreach ($favoritos as $favorito) {
@@ -395,13 +561,13 @@ class DatabaseSeeder extends Seeder
         }
 
         $compras = [
-            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Ramen casero especial']->id, 'precio_pagado' => 79.00],
-            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Asado de boda estilo ChefIA']->id, 'precio_pagado' => 99.00],
-            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Cheesecake de frutos rojos']->id, 'precio_pagado' => 89.00],
-            ['usuario_id' => $usuariosExtra['luis']->id, 'receta_id' => $recetas['Birria de res estilo Jalisco']->id, 'precio_pagado' => 119.00],
-            ['usuario_id' => $usuariosExtra['maria']->id, 'receta_id' => $recetas['Mole negro oaxaqueno']->id, 'precio_pagado' => 149.00],
-            ['usuario_id' => $usuariosExtra['carlos']->id, 'receta_id' => $recetas['Ramen casero especial']->id, 'precio_pagado' => 79.00],
-            ['usuario_id' => $usuariosExtra['sofia']->id, 'receta_id' => $recetas['Asado de boda estilo ChefIA']->id, 'precio_pagado' => 99.00],
+            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Ramen casero especial']->id, 'precio_pagado' => 79.00, 'tarjeta_ultimos4' => '4242'],
+            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Asado de boda estilo ChefIA']->id, 'precio_pagado' => 99.00, 'tarjeta_ultimos4' => '4242'],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Cheesecake de frutos rojos']->id, 'precio_pagado' => 89.00, 'tarjeta_ultimos4' => '1881'],
+            ['usuario_id' => $usuariosExtra['luis']->id, 'receta_id' => $recetas['Birria de res estilo Jalisco']->id, 'precio_pagado' => 119.00, 'tarjeta_ultimos4' => '7331'],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Mole negro oaxaqueno']->id, 'precio_pagado' => 149.00, 'tarjeta_ultimos4' => '1881'],
+            ['usuario_id' => $usuariosExtra['carlos']->id, 'receta_id' => $recetas['Ramen casero especial']->id, 'precio_pagado' => 79.00, 'tarjeta_ultimos4' => '9021'],
+            ['usuario_id' => $usuariosExtra['sofia']->id, 'receta_id' => $recetas['Asado de boda estilo ChefIA']->id, 'precio_pagado' => 99.00, 'tarjeta_ultimos4' => '6610'],
         ];
 
         foreach ($compras as $compra) {
@@ -410,7 +576,12 @@ class DatabaseSeeder extends Seeder
                     'usuario_id' => $compra['usuario_id'],
                     'receta_id' => $compra['receta_id'],
                 ],
-                ['precio_pagado' => $compra['precio_pagado']]
+                [
+                    'precio_pagado' => $compra['precio_pagado'],
+                    'metodo_pago' => 'Tarjeta simulada',
+                    'tarjeta_ultimos4' => $compra['tarjeta_ultimos4'],
+                    'referencia_pago' => 'CHF-SEED-' . $compra['usuario_id'] . '-' . $compra['receta_id'],
+                ]
             );
         }
     }

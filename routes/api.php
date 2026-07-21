@@ -39,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/compras', [CompraController::class, 'index']);
     Route::post('/compras', [CompraController::class, 'store']);
     Route::post('/compras/lote', [CompraController::class, 'storeMany']);
+    Route::middleware('role:admin')->get('/compras/reporte/ventas', [CompraController::class, 'reporte']);
     Route::get('/compras/{compra}', [CompraController::class, 'show']);
 
     // Asistente IA
@@ -69,7 +70,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/categorias/{categoria}', [CategoriaController::class, 'destroy']);
 
         Route::delete('/comentarios/{comentario}', [ComentarioController::class, 'destroy']);
-        Route::get('/compras/reporte/ventas', [CompraController::class, 'reporte']);
         Route::delete('/compras/{compra}', [CompraController::class, 'destroy']);
 
         Route::apiResource('usuarios', UserController::class)->parameters(['usuarios' => 'user']);
