@@ -63,8 +63,17 @@ class AuthController extends Controller
         }
 
         if ($user->suspended_indefinitely || ($user->suspended_until && $user->suspended_until->isFuture())) {
+            $motivo = $user->suspension_reason ?: 'Revision administrativa de la cuenta.';
+            $mensaje = $user->suspended_indefinitely
+                ? 'Tu cuenta esta suspendida por tiempo indefinido.'
+                : 'Tu cuenta esta suspendida temporalmente.';
+
             return response()->json([
-                'message' => 'No pudimos iniciar sesion. Revisa tus datos o contacta al administrador.',
+                'message' => $mensaje,
+                'status' => 'suspended',
+                'reason' => $motivo,
+                'suspended_indefinitely' => (bool) $user->suspended_indefinitely,
+                'suspended_until' => $user->suspended_until?->toIso8601String(),
             ], 403);
         }
 
