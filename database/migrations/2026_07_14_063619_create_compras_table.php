@@ -16,7 +16,6 @@ return new class extends Migration {
             $table->foreignId('receta_id')->constrained('recetas')->onDelete('cascade');
             $table->decimal('precio_pagado', 8, 2);
             $table->timestamps();
-            $table->unique(['usuario_id', 'receta_id']);
         });
     }
 
