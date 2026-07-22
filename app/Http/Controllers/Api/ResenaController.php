@@ -31,13 +31,13 @@ class ResenaController extends Controller
 
         $compra = Compra::where('usuario_id', $request->user()->id)
             ->where('receta_id', $validated['receta_id'])
-            ->whereIn('estado', ['pagado', 'enviado', 'entregado'])
+            ->where('estado', 'entregado')
             ->latest()
             ->first();
 
         if (!$compra) {
             return response()->json([
-                'message' => 'Solo puedes resenar recetas premium que ya tengas pagadas.',
+                'message' => 'Solo puedes resenar recetas premium que ya fueron entregadas.',
             ], 403);
         }
 

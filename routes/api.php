@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CategoriaController;
 use App\Http\Controllers\Api\ComentarioController;
 use App\Http\Controllers\Api\CompraController;
 use App\Http\Controllers\Api\FavoritoController;
+use App\Http\Controllers\Api\NotificacionController;
 use App\Http\Controllers\Api\RecetaController;
 use App\Http\Controllers\Api\ResenaController;
 use App\Http\Controllers\Api\UserController;
@@ -36,6 +37,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/me', [AuthController::class, 'updateMe']);
     Route::patch('/me', [AuthController::class, 'updateMe']);
 
+    Route::get('/notificaciones', [NotificacionController::class, 'index']);
+    Route::patch('/notificaciones/{notificacion}/leer', [NotificacionController::class, 'marcarLeida']);
+
     // compras
     Route::get('/compras', [CompraController::class, 'index']);
     Route::post('/compras', [CompraController::class, 'store']);
@@ -55,6 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Recetas: cualquier usuario autenticado puede crear
     Route::post('/recetas', [RecetaController::class, 'store']);
+    Route::post('/recetas/{receta}', [RecetaController::class, 'update']);
     Route::put('/recetas/{receta}', [RecetaController::class, 'update']);
     Route::patch('/recetas/{receta}', [RecetaController::class, 'update']);
     Route::delete('/recetas/{receta}', [RecetaController::class, 'destroy']);
@@ -62,6 +67,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Comentarios: cualquier usuario autenticado puede comentar
     Route::post('/comentarios', [ComentarioController::class, 'store']);
     Route::put('/comentarios/{comentario}', [ComentarioController::class, 'update']);
+    Route::patch('/comentarios/{comentario}', [ComentarioController::class, 'update']);
+    Route::delete('/comentarios/{comentario}', [ComentarioController::class, 'destroy']);
 
     // Favoritos: cualquier usuario autenticado
     Route::apiResource('favoritos', FavoritoController::class)->except(['update']);
@@ -75,7 +82,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/categorias/{categoria}', [CategoriaController::class, 'update']);
         Route::delete('/categorias/{categoria}', [CategoriaController::class, 'destroy']);
 
-        Route::delete('/comentarios/{comentario}', [ComentarioController::class, 'destroy']);
         Route::get('/resenas/reporte/general', [ResenaController::class, 'reporte']);
         Route::patch('/compras/{compra}/estado', [CompraController::class, 'updateEstado']);
         Route::delete('/compras/{compra}', [CompraController::class, 'destroy']);

@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Notificacion;
 use App\Models\Receta;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class RecetaController extends Controller
@@ -36,11 +39,13 @@ class RecetaController extends Controller
             'pasos' => 'required|string',
             'tiempo_preparacion' => 'nullable|integer',
             'imagen' => 'nullable|string',
+            'imagen_archivo' => 'nullable|image|max:4096',
             'es_premium' => 'sometimes|boolean',
             'precio' => 'required_if:es_premium,true|nullable|numeric|min:0',
         ]);
 
         $validated['usuario_id'] = $request->user()->id;
+        $validated = $this->procesarImagen($request, $validated);
 
         if (empty($validated['es_premium'])) {
             $validated['precio'] = null;
@@ -81,20 +86,26 @@ class RecetaController extends Controller
             'pasos' => 'sometimes|required|string',
             'tiempo_preparacion' => 'nullable|integer',
             'imagen' => 'nullable|string',
+            'imagen_archivo' => 'nullable|image|max:4096',
             'es_premium' => 'sometimes|boolean',
             'precio' => 'required_if:es_premium,true|nullable|numeric|min:0',
         ]);
 
+        $validated = $this->procesarImagen($request, $validated);
         $receta->update($validated);
+        $this->notificarRecetaActualizada($receta->fresh()->load('usuario'), $request->user());
 
         return response()->json($receta, 200);
     }
 
-    public function destroy(Receta $receta)
+    public function destroy(Request $request, Receta $receta)
     {
         $this->authorize('delete', $receta);
+        $titulo = $receta->titulo;
+        $autorId = $receta->usuario_id;
 
         $receta->delete();
+        $this->notificarRecetaEliminada($titulo, $autorId, $request->user());
 
         return response()->json(['message' => 'Receta eliminada correctamente'], 200);
     }
@@ -125,7 +136,7 @@ class RecetaController extends Controller
             $esAdmin = $user->role === 'admin';
             $comprada = $receta->compras()
                 ->where('usuario_id', $user->id)
-                ->whereIn('estado', ['pagado', 'enviado', 'entregado'])
+                ->where('estado', 'entregado')
                 ->exists();
             $tieneAcceso = $tieneAcceso || $esAutor || $esAdmin || $comprada;
         }
@@ -138,5 +149,88 @@ class RecetaController extends Controller
         $receta->comprada = $comprada;
 
         return $receta;
+    }
+
+    private function procesarImagen(Request $request, array $validated): array
+    {
+        if ($request->hasFile('imagen_archivo')) {
+            $path = $request->file('imagen_archivo')->store('recetas', 'public');
+            $validated['imagen'] = $request->getSchemeAndHttpHost() . Storage::url($path);
+        }
+
+        unset($validated['imagen_archivo']);
+
+        if (empty($validated['imagen'])) {
+            $validated['imagen'] = '/img/fondo-login.webp';
+        }
+
+        return $validated;
+    }
+
+    private function notificarRecetaActualizada(Receta $receta, User $actor): void
+    {
+        if ($actor->role === 'admin' && (int) $receta->usuario_id !== (int) $actor->id) {
+            $this->crearNotificacion(
+                $receta->usuario_id,
+                $actor,
+                'receta_actualizada',
+                'Tu receta fue actualizada',
+                'El admin actualizo "' . $receta->titulo . '". Revisa los cambios en tu recetario.',
+                ['receta_id' => $receta->id, 'url' => '/mis-recetas']
+            );
+            return;
+        }
+
+        if ($actor->role !== 'admin') {
+            $this->notificarAdmins(
+                'Receta actualizada',
+                $actor->name . ' actualizo su receta "' . $receta->titulo . '".',
+                $actor,
+                ['receta_id' => $receta->id, 'url' => '/recetas/' . $receta->id]
+            );
+        }
+    }
+
+    private function notificarRecetaEliminada(string $titulo, int $autorId, User $actor): void
+    {
+        if ($actor->role === 'admin' && (int) $autorId !== (int) $actor->id) {
+            $this->crearNotificacion(
+                $autorId,
+                $actor,
+                'receta_eliminada',
+                'Tu receta fue eliminada',
+                'El admin elimino "' . $titulo . '" del recetario.',
+                ['url' => '/mis-recetas']
+            );
+            return;
+        }
+
+        if ($actor->role !== 'admin') {
+            $this->notificarAdmins(
+                'Receta eliminada',
+                $actor->name . ' elimino su receta "' . $titulo . '".',
+                $actor,
+                ['url' => '/dashboard']
+            );
+        }
+    }
+
+    private function notificarAdmins(string $titulo, string $mensaje, User $actor, array $data = []): void
+    {
+        User::where('role', 'admin')->get()->each(function (User $admin) use ($titulo, $mensaje, $actor, $data) {
+            $this->crearNotificacion($admin->id, $actor, 'admin', $titulo, $mensaje, $data);
+        });
+    }
+
+    private function crearNotificacion(int $userId, User $actor, string $tipo, string $titulo, string $mensaje, array $data = []): void
+    {
+        Notificacion::create([
+            'user_id' => $userId,
+            'actor_id' => $actor->id,
+            'tipo' => $tipo,
+            'titulo' => $titulo,
+            'mensaje' => $mensaje,
+            'data' => $data,
+        ]);
     }
 }

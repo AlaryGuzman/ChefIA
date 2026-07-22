@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Compra;
+use App\Models\Notificacion;
 use App\Models\Receta;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class CompraController extends Controller
@@ -41,8 +43,8 @@ class CompraController extends Controller
 
         return response()->json([
             'message' => $compra->estado === 'pendiente_pago'
-                ? 'Pedido creado. Paga con tu referencia OXXO para desbloquear la receta.'
-                : 'Pedido pagado correctamente.',
+                ? 'Pedido creado. Paga con tu referencia OXXO y espera la confirmacion del admin.'
+                : 'Pago registrado correctamente. El admin debe enviar tu receta para que puedas recibirla.',
             'compra' => $compra,
         ], 201);
     }
@@ -161,6 +163,7 @@ class CompraController extends Controller
         }
 
         $compra->update($datos);
+        $this->notificarCambioEstado($compra->fresh()->load(['usuario', 'receta.usuario']), $request->user());
 
         return response()->json([
             'message' => 'Estado del pedido actualizado correctamente.',
@@ -170,6 +173,8 @@ class CompraController extends Controller
 
     public function confirmarEntrega(Request $request, Compra $compra)
     {
+        $compra->load('receta');
+
         if ($compra->usuario_id !== $request->user()->id) {
             return response()->json(['message' => 'No tienes permisos para confirmar este pedido.'], 403);
         }
@@ -182,6 +187,12 @@ class CompraController extends Controller
             'estado' => 'entregado',
             'entregado_at' => now(),
         ]);
+        $this->notificarAdmins(
+            'Pedido entregado',
+            $request->user()->name . ' recibio la receta "' . $compra->receta?->titulo . '".',
+            $request->user(),
+            ['compra_id' => $compra->id, 'receta_id' => $compra->receta_id, 'url' => '/pedidos']
+        );
 
         return response()->json([
             'message' => 'Pedido marcado como entregado.',
@@ -255,6 +266,8 @@ class CompraController extends Controller
             'referencia_efectivo' => $datosPago['referencia_efectivo'] ?? null,
             'pagado_at' => $datosPago['pagado_at'] ?? now(),
         ]);
+        $compra->load(['usuario', 'receta.usuario']);
+        $this->notificarPedidoCreado($compra);
 
         return [$compra->load(['receta.usuario', 'receta.categoria']), null, 201];
     }
@@ -281,7 +294,7 @@ class CompraController extends Controller
         $flujo = [
             'pendiente_pago' => ['pagado'],
             'pagado' => ['enviado'],
-            'enviado' => ['entregado'],
+            'enviado' => [],
             'entregado' => [],
         ];
 
@@ -289,6 +302,81 @@ class CompraController extends Controller
             return [true, null];
         }
 
-        return [false, 'Para llegar a entregado el pedido debe pasar por pendiente de pago, pagado y enviado.'];
+        return [false, 'El admin solo puede confirmar pago y enviar. El usuario debe recibir la receta para marcarla como entregada.'];
+    }
+
+    private function notificarPedidoCreado(Compra $compra): void
+    {
+        $mensaje = $compra->usuario->name . ' hizo un pedido de "' . $compra->receta->titulo . '".';
+
+        $this->notificarAdmins('Nuevo pedido', $mensaje, $compra->usuario, [
+            'compra_id' => $compra->id,
+            'receta_id' => $compra->receta_id,
+            'url' => '/pedidos',
+        ]);
+
+        if ($compra->receta->usuario_id && (int) $compra->receta->usuario_id !== (int) $compra->usuario_id) {
+            $this->crearNotificacion(
+                $compra->receta->usuario_id,
+                $compra->usuario,
+                'venta_receta',
+                'Tu receta tiene un pedido',
+                $mensaje,
+                ['compra_id' => $compra->id, 'receta_id' => $compra->receta_id, 'url' => '/mis-recetas']
+            );
+        }
+    }
+
+    private function notificarCambioEstado(Compra $compra, User $admin): void
+    {
+        $titulo = match ($compra->estado) {
+            'pagado' => 'Pago confirmado',
+            'enviado' => 'Tu receta ha llegado',
+            'cancelado' => 'Pedido cancelado',
+            'eliminado' => 'Pedido eliminado',
+            default => 'Pedido actualizado',
+        };
+
+        $mensaje = match ($compra->estado) {
+            'pagado' => 'Tu pago de "' . $compra->receta->titulo . '" fue confirmado. Espera a que el admin envie la receta.',
+            'enviado' => 'La receta "' . $compra->receta->titulo . '" ya fue enviada. Recibela para desbloquearla.',
+            'cancelado' => 'Tu pedido de "' . $compra->receta->titulo . '" fue cancelado. Se genero reembolso con referencia ' . $compra->referencia_reembolso . '.',
+            'eliminado' => 'Tu pedido de "' . $compra->receta->titulo . '" fue marcado como eliminado por administracion.',
+            default => 'Tu pedido de "' . $compra->receta->titulo . '" cambio de estado.',
+        };
+
+        $this->crearNotificacion(
+            $compra->usuario_id,
+            $admin,
+            'pedido_' . $compra->estado,
+            $titulo,
+            $mensaje,
+            [
+                'compra_id' => $compra->id,
+                'receta_id' => $compra->receta_id,
+                'estado' => $compra->estado,
+                'accion' => $compra->estado === 'enviado' ? 'recibir' : null,
+                'url' => $compra->estado === 'enviado' ? '/mis-compras' : '/mis-compras',
+            ]
+        );
+    }
+
+    private function notificarAdmins(string $titulo, string $mensaje, ?User $actor = null, array $data = []): void
+    {
+        User::where('role', 'admin')->get()->each(function (User $admin) use ($titulo, $mensaje, $actor, $data) {
+            $this->crearNotificacion($admin->id, $actor, 'admin', $titulo, $mensaje, $data);
+        });
+    }
+
+    private function crearNotificacion(int $userId, ?User $actor, string $tipo, string $titulo, string $mensaje, array $data = []): void
+    {
+        Notificacion::create([
+            'user_id' => $userId,
+            'actor_id' => $actor?->id,
+            'tipo' => $tipo,
+            'titulo' => $titulo,
+            'mensaje' => $mensaje,
+            'data' => $data,
+        ]);
     }
 }

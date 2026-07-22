@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Comentario;
+use App\Models\Notificacion;
 use Illuminate\Http\Request;
 
 class ComentarioController extends Controller
@@ -19,11 +20,11 @@ class ComentarioController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'usuario_id' => 'required|exists:users,id',
             'receta_id' => 'required|exists:recetas,id',
             'contenido' => 'required|string',
         ]);
 
+        $validated['usuario_id'] = $request->user()->id;
         $comentario = Comentario::create($validated);
 
         return response()->json($comentario, 201);
@@ -46,16 +47,53 @@ class ComentarioController extends Controller
 
         $comentario->update($validated);
 
-        return response()->json($comentario, 200);
+        if ($request->user()->role === 'admin' && (int) $comentario->usuario_id !== (int) $request->user()->id) {
+            $this->crearNotificacion(
+                $comentario->usuario_id,
+                $request->user()->id,
+                'comentario_actualizado',
+                'Tu comentario fue actualizado',
+                'El admin actualizo un comentario que hiciste en "' . $comentario->receta?->titulo . '".',
+                ['receta_id' => $comentario->receta_id, 'url' => '/recetas/' . $comentario->receta_id]
+            );
+        }
+
+        return response()->json($comentario->fresh()->load(['usuario', 'receta']), 200);
     }
 
     // Eliminar un comentario
-    public function destroy(Comentario $comentario)
+    public function destroy(Request $request, Comentario $comentario)
     {
         $this->authorize('delete', $comentario);
+        $usuarioId = $comentario->usuario_id;
+        $recetaId = $comentario->receta_id;
+        $recetaTitulo = $comentario->receta?->titulo;
 
         $comentario->delete();
 
+        if ($request->user()->role === 'admin' && (int) $usuarioId !== (int) $request->user()->id) {
+            $this->crearNotificacion(
+                $usuarioId,
+                $request->user()->id,
+                'comentario_eliminado',
+                'Tu comentario fue eliminado',
+                'El admin elimino un comentario que hiciste en "' . $recetaTitulo . '".',
+                ['receta_id' => $recetaId, 'url' => '/recetas/' . $recetaId]
+            );
+        }
+
         return response()->json(['message' => 'Comentario eliminado correctamente'], 200);
+    }
+
+    private function crearNotificacion(int $userId, int $actorId, string $tipo, string $titulo, string $mensaje, array $data = []): void
+    {
+        Notificacion::create([
+            'user_id' => $userId,
+            'actor_id' => $actorId,
+            'tipo' => $tipo,
+            'titulo' => $titulo,
+            'mensaje' => $mensaje,
+            'data' => $data,
+        ]);
     }
 }
