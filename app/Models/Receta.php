@@ -51,4 +51,9 @@ class Receta extends Model
     {
         return $this->hasMany(Compra::class, 'receta_id');
     }
+
+    public function resenas()
+    {
+        return $this->hasMany(Resena::class, 'receta_id');
+    }
 }

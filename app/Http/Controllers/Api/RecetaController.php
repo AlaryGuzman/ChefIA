@@ -15,7 +15,8 @@ class RecetaController extends Controller
         $user = $this->userFromOptionalToken($request);
 
         $recetas = Receta::with(['usuario', 'categoria'])
-            ->withCount(['favoritos', 'comentarios', 'compras'])
+            ->withCount(['favoritos', 'comentarios', 'compras', 'resenas'])
+            ->withAvg('resenas', 'calificacion')
             ->latest()
             ->get()
             ->map(fn (Receta $receta) => $this->prepareForUser($receta, $user));
@@ -57,7 +58,8 @@ class RecetaController extends Controller
         $user = $this->userFromOptionalToken($request);
 
         $receta->load(['usuario', 'categoria', 'comentarios.usuario'])
-            ->loadCount(['favoritos', 'comentarios', 'compras']);
+            ->loadCount(['favoritos', 'comentarios', 'compras', 'resenas'])
+            ->loadAvg('resenas', 'calificacion');
 
         $this->prepareForUser($receta, $user);
 
@@ -121,7 +123,10 @@ class RecetaController extends Controller
         if ($user) {
             $esAutor = (int) $receta->usuario_id === (int) $user->id;
             $esAdmin = $user->role === 'admin';
-            $comprada = $receta->compras()->where('usuario_id', $user->id)->exists();
+            $comprada = $receta->compras()
+                ->where('usuario_id', $user->id)
+                ->whereIn('estado', ['pagado', 'enviado', 'entregado'])
+                ->exists();
             $tieneAcceso = $tieneAcceso || $esAutor || $esAdmin || $comprada;
         }
 

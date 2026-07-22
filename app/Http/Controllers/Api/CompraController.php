@@ -9,9 +9,11 @@ use Illuminate\Http\Request;
 
 class CompraController extends Controller
 {
+    private const ESTADOS = ['pendiente_pago', 'pagado', 'enviado', 'entregado', 'cancelado', 'eliminado'];
+
     public function index(Request $request)
     {
-        $compras = Compra::with(['receta.usuario', 'receta.categoria'])
+        $compras = Compra::with(['receta.usuario', 'receta.categoria', 'resena'])
             ->where('usuario_id', $request->user()->id)
             ->latest()
             ->get();
@@ -23,6 +25,7 @@ class CompraController extends Controller
     {
         $validated = $request->validate([
             'receta_id' => 'required|exists:recetas,id',
+            'metodo_pago' => 'nullable|string|in:tarjeta,efectivo_oxxo',
             'tarjeta.numero' => 'nullable|string|min:12|max:23',
             'tarjeta.nombre' => 'nullable|string|max:120',
             'tarjeta.expiracion' => 'nullable|string|max:7',
@@ -37,7 +40,9 @@ class CompraController extends Controller
         }
 
         return response()->json([
-            'message' => 'Compra realizada correctamente',
+            'message' => $compra->estado === 'pendiente_pago'
+                ? 'Pedido creado. Paga con tu referencia OXXO para desbloquear la receta.'
+                : 'Pedido pagado correctamente.',
             'compra' => $compra,
         ], 201);
     }
@@ -47,6 +52,7 @@ class CompraController extends Controller
         $validated = $request->validate([
             'receta_ids' => 'required|array|min:1',
             'receta_ids.*' => 'required|exists:recetas,id',
+            'metodo_pago' => 'nullable|string|in:tarjeta,efectivo_oxxo',
             'tarjeta.numero' => 'nullable|string|min:12|max:23',
             'tarjeta.nombre' => 'nullable|string|max:120',
             'tarjeta.expiracion' => 'nullable|string|max:7',
@@ -69,7 +75,7 @@ class CompraController extends Controller
         }
 
         return response()->json([
-            'message' => count($compras) > 0 ? 'Compra simulada realizada' : 'No se pudo realizar la compra',
+            'message' => count($compras) > 0 ? 'Pedido registrado correctamente' : 'No se pudo realizar el pedido',
             'compras' => $compras,
             'errores' => $errores,
         ], count($compras) > 0 ? 201 : 422);
@@ -81,23 +87,27 @@ class CompraController extends Controller
             return response()->json(['message' => 'No tienes permisos para ver esta compra'], 403);
         }
 
-        $compra->load(['receta.usuario', 'receta.categoria']);
+        $compra->load(['receta.usuario', 'receta.categoria', 'resena']);
 
         return response()->json($compra, 200);
     }
 
     public function reporte(Request $request)
     {
-        $totalVentas = Compra::sum('precio_pagado');
+        $totalVentas = Compra::whereIn('estado', ['pagado', 'enviado', 'entregado'])->sum('precio_pagado');
         $totalCompras = Compra::count();
+        $pedidosPorEstado = Compra::selectRaw('estado, COUNT(*) as total')
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
 
         $ventasPorReceta = Compra::selectRaw('receta_id, COUNT(*) as veces_comprada, SUM(precio_pagado) as total_generado')
             ->with('receta:id,titulo,usuario_id')
+            ->whereIn('estado', ['pagado', 'enviado', 'entregado'])
             ->groupBy('receta_id')
             ->orderByDesc('total_generado')
             ->get();
 
-        $comprasRecientes = Compra::with(['usuario:id,name,email', 'receta:id,titulo,precio,es_premium'])
+        $comprasRecientes = Compra::with(['usuario:id,name,email', 'receta:id,titulo,precio,es_premium,imagen'])
             ->latest()
             ->take(50)
             ->get();
@@ -106,27 +116,112 @@ class CompraController extends Controller
             'resumen' => [
                 'total_ventas' => $totalVentas,
                 'total_compras' => $totalCompras,
+                'por_estado' => $pedidosPorEstado,
             ],
             'ventas_por_receta' => $ventasPorReceta,
             'compras_recientes' => $comprasRecientes,
         ], 200);
     }
 
+    public function updateEstado(Request $request, Compra $compra)
+    {
+        $validated = $request->validate([
+            'estado' => 'required|string|in:' . implode(',', self::ESTADOS),
+            'motivo_cancelacion' => 'nullable|string|max:255',
+        ]);
+
+        [$ok, $message] = $this->puedeCambiarEstado($compra, $validated['estado']);
+
+        if (!$ok) {
+            return response()->json(['message' => $message], 422);
+        }
+
+        $datos = ['estado' => $validated['estado']];
+
+        if ($validated['estado'] === 'pagado') {
+            $datos['pagado_at'] = now();
+        }
+
+        if ($validated['estado'] === 'enviado') {
+            $datos['enviado_at'] = now();
+        }
+
+        if ($validated['estado'] === 'entregado') {
+            $datos['entregado_at'] = now();
+        }
+
+        if ($validated['estado'] === 'cancelado') {
+            $datos['cancelado_at'] = now();
+            $datos['motivo_cancelacion'] = $validated['motivo_cancelacion'] ?? 'Pedido cancelado por administracion.';
+            $datos['referencia_reembolso'] = $this->referencia('RMB');
+        }
+
+        if ($validated['estado'] === 'eliminado') {
+            $datos['eliminado_at'] = now();
+        }
+
+        $compra->update($datos);
+
+        return response()->json([
+            'message' => 'Estado del pedido actualizado correctamente.',
+            'compra' => $compra->fresh()->load(['usuario:id,name,email', 'receta:id,titulo,precio,es_premium,imagen']),
+        ], 200);
+    }
+
+    public function confirmarEntrega(Request $request, Compra $compra)
+    {
+        if ($compra->usuario_id !== $request->user()->id) {
+            return response()->json(['message' => 'No tienes permisos para confirmar este pedido.'], 403);
+        }
+
+        if ($compra->estado !== 'enviado') {
+            return response()->json(['message' => 'Solo puedes confirmar entrega cuando el pedido ya fue enviado.'], 422);
+        }
+
+        $compra->update([
+            'estado' => 'entregado',
+            'entregado_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Pedido marcado como entregado.',
+            'compra' => $compra->fresh()->load(['receta.usuario', 'receta.categoria', 'resena']),
+        ], 200);
+    }
+
     public function destroy(Compra $compra)
     {
-        $compra->delete();
+        $compra->update([
+            'estado' => 'eliminado',
+            'eliminado_at' => now(),
+        ]);
 
-        return response()->json(['message' => 'Venta eliminada correctamente'], 200);
+        return response()->json(['message' => 'Pedido marcado como eliminado correctamente'], 200);
     }
 
     private function datosPago(Request $request): array
     {
         $numero = preg_replace('/\D+/', '', (string) $request->input('tarjeta.numero', ''));
+        $metodo = $request->input('metodo_pago', $numero ? 'tarjeta' : 'tarjeta');
+
+        if ($metodo === 'efectivo_oxxo') {
+            return [
+                'metodo_pago' => 'Efectivo OXXO',
+                'estado' => 'pendiente_pago',
+                'tarjeta_ultimos4' => null,
+                'referencia_pago' => $this->referencia('PED'),
+                'referencia_efectivo' => $this->referencia('OXXO'),
+                'pagado_at' => null,
+            ];
+        }
 
         return [
             'metodo_pago' => 'Tarjeta simulada',
+            'estado' => 'pagado',
             'tarjeta_ultimos4' => $numero ? substr($numero, -4) : null,
-            'referencia_pago' => 'CHF-' . now()->format('YmdHis') . '-' . random_int(1000, 9999),
+            'referencia_pago' => $this->referencia('PED'),
+            'referencia_efectivo' => null,
+            'pagado_at' => now(),
         ];
     }
 
@@ -142,10 +237,11 @@ class CompraController extends Controller
 
         $yaComprada = Compra::where('usuario_id', $usuario->id)
             ->where('receta_id', $receta->id)
+            ->whereNotIn('estado', ['cancelado', 'eliminado'])
             ->first();
 
         if ($yaComprada) {
-            return [null, 'Ya has comprado esta receta', 409];
+            return [null, 'Ya tienes un pedido activo para esta receta.', 409];
         }
 
         $compra = Compra::create([
@@ -153,10 +249,46 @@ class CompraController extends Controller
             'receta_id' => $receta->id,
             'precio_pagado' => $receta->precio,
             'metodo_pago' => $datosPago['metodo_pago'] ?? 'Tarjeta simulada',
+            'estado' => $datosPago['estado'] ?? 'pagado',
             'tarjeta_ultimos4' => $datosPago['tarjeta_ultimos4'] ?? null,
             'referencia_pago' => $datosPago['referencia_pago'] ?? null,
+            'referencia_efectivo' => $datosPago['referencia_efectivo'] ?? null,
+            'pagado_at' => $datosPago['pagado_at'] ?? now(),
         ]);
 
-        return [$compra, null, 201];
+        return [$compra->load(['receta.usuario', 'receta.categoria']), null, 201];
+    }
+
+    private function referencia(string $prefijo): string
+    {
+        return $prefijo . '-' . now()->format('YmdHis') . '-' . random_int(1000, 9999);
+    }
+
+    private function puedeCambiarEstado(Compra $compra, string $nuevoEstado): array
+    {
+        if ($compra->estado === $nuevoEstado) {
+            return [true, null];
+        }
+
+        if (in_array($compra->estado, ['cancelado', 'eliminado'], true)) {
+            return [false, 'No puedes cambiar un pedido cancelado o eliminado.'];
+        }
+
+        if (in_array($nuevoEstado, ['cancelado', 'eliminado'], true)) {
+            return [true, null];
+        }
+
+        $flujo = [
+            'pendiente_pago' => ['pagado'],
+            'pagado' => ['enviado'],
+            'enviado' => ['entregado'],
+            'entregado' => [],
+        ];
+
+        if (in_array($nuevoEstado, $flujo[$compra->estado] ?? [], true)) {
+            return [true, null];
+        }
+
+        return [false, 'Para llegar a entregado el pedido debe pasar por pendiente de pago, pagado y enviado.'];
     }
 }

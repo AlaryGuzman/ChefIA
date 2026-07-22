@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ComentarioController;
 use App\Http\Controllers\Api\CompraController;
 use App\Http\Controllers\Api\FavoritoController;
 use App\Http\Controllers\Api\RecetaController;
+use App\Http\Controllers\Api\ResenaController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -41,6 +42,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/compras/lote', [CompraController::class, 'storeMany']);
     Route::middleware('role:admin')->get('/compras/reporte/ventas', [CompraController::class, 'reporte']);
     Route::get('/compras/{compra}', [CompraController::class, 'show']);
+    Route::patch('/compras/{compra}/entregar', [CompraController::class, 'confirmarEntrega']);
+
+    // Resenas
+    Route::get('/resenas', [ResenaController::class, 'index']);
+    Route::post('/resenas', [ResenaController::class, 'store']);
 
     // Asistente IA
     Route::post('/asistente/generar-receta', [AsistenteIAController::class, 'generarReceta']);
@@ -70,6 +76,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/categorias/{categoria}', [CategoriaController::class, 'destroy']);
 
         Route::delete('/comentarios/{comentario}', [ComentarioController::class, 'destroy']);
+        Route::get('/resenas/reporte/general', [ResenaController::class, 'reporte']);
+        Route::patch('/compras/{compra}/estado', [CompraController::class, 'updateEstado']);
         Route::delete('/compras/{compra}', [CompraController::class, 'destroy']);
 
         Route::apiResource('usuarios', UserController::class)->parameters(['usuarios' => 'user']);

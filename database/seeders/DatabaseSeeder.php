@@ -7,6 +7,7 @@ use App\Models\Comentario;
 use App\Models\Compra;
 use App\Models\Favorito;
 use App\Models\Receta;
+use App\Models\Resena;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -561,16 +562,17 @@ class DatabaseSeeder extends Seeder
         }
 
         $compras = [
-            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Ramen casero especial']->id, 'precio_pagado' => 79.00, 'tarjeta_ultimos4' => '4242'],
-            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Asado de boda estilo ChefIA']->id, 'precio_pagado' => 99.00, 'tarjeta_ultimos4' => '4242'],
-            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Cheesecake de frutos rojos']->id, 'precio_pagado' => 89.00, 'tarjeta_ultimos4' => '1881'],
-            ['usuario_id' => $usuariosExtra['luis']->id, 'receta_id' => $recetas['Birria de res estilo Jalisco']->id, 'precio_pagado' => 119.00, 'tarjeta_ultimos4' => '7331'],
-            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Mole negro oaxaqueno']->id, 'precio_pagado' => 149.00, 'tarjeta_ultimos4' => '1881'],
-            ['usuario_id' => $usuariosExtra['carlos']->id, 'receta_id' => $recetas['Ramen casero especial']->id, 'precio_pagado' => 79.00, 'tarjeta_ultimos4' => '9021'],
-            ['usuario_id' => $usuariosExtra['sofia']->id, 'receta_id' => $recetas['Asado de boda estilo ChefIA']->id, 'precio_pagado' => 99.00, 'tarjeta_ultimos4' => '6610'],
+            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Ramen casero especial']->id, 'precio_pagado' => 79.00, 'tarjeta_ultimos4' => '4242', 'estado' => 'entregado'],
+            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Asado de boda estilo ChefIA']->id, 'precio_pagado' => 99.00, 'tarjeta_ultimos4' => '4242', 'estado' => 'enviado'],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Cheesecake de frutos rojos']->id, 'precio_pagado' => 89.00, 'tarjeta_ultimos4' => '1881', 'estado' => 'pagado'],
+            ['usuario_id' => $usuariosExtra['luis']->id, 'receta_id' => $recetas['Birria de res estilo Jalisco']->id, 'precio_pagado' => 119.00, 'tarjeta_ultimos4' => null, 'estado' => 'pendiente_pago', 'metodo_pago' => 'Efectivo OXXO'],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Mole negro oaxaqueno']->id, 'precio_pagado' => 149.00, 'tarjeta_ultimos4' => '1881', 'estado' => 'entregado'],
+            ['usuario_id' => $usuariosExtra['carlos']->id, 'receta_id' => $recetas['Ramen casero especial']->id, 'precio_pagado' => 79.00, 'tarjeta_ultimos4' => '9021', 'estado' => 'cancelado'],
+            ['usuario_id' => $usuariosExtra['sofia']->id, 'receta_id' => $recetas['Asado de boda estilo ChefIA']->id, 'precio_pagado' => 99.00, 'tarjeta_ultimos4' => '6610', 'estado' => 'pagado'],
         ];
 
         foreach ($compras as $compra) {
+            $estado = $compra['estado'];
             Compra::updateOrCreate(
                 [
                     'usuario_id' => $compra['usuario_id'],
@@ -578,9 +580,49 @@ class DatabaseSeeder extends Seeder
                 ],
                 [
                     'precio_pagado' => $compra['precio_pagado'],
-                    'metodo_pago' => 'Tarjeta simulada',
+                    'metodo_pago' => $compra['metodo_pago'] ?? 'Tarjeta simulada',
+                    'estado' => $estado,
                     'tarjeta_ultimos4' => $compra['tarjeta_ultimos4'],
                     'referencia_pago' => 'CHF-SEED-' . $compra['usuario_id'] . '-' . $compra['receta_id'],
+                    'referencia_efectivo' => ($compra['metodo_pago'] ?? '') === 'Efectivo OXXO'
+                        ? 'OXXO-SEED-' . $compra['usuario_id'] . '-' . $compra['receta_id']
+                        : null,
+                    'referencia_reembolso' => $estado === 'cancelado'
+                        ? 'RMB-SEED-' . $compra['usuario_id'] . '-' . $compra['receta_id']
+                        : null,
+                    'motivo_cancelacion' => $estado === 'cancelado'
+                        ? 'Pedido cancelado por administracion. Se genero reembolso.'
+                        : null,
+                    'pagado_at' => in_array($estado, ['pagado', 'enviado', 'entregado', 'cancelado'], true) ? now()->subDays(2) : null,
+                    'enviado_at' => in_array($estado, ['enviado', 'entregado'], true) ? now()->subDay() : null,
+                    'entregado_at' => $estado === 'entregado' ? now() : null,
+                    'cancelado_at' => $estado === 'cancelado' ? now() : null,
+                ]
+            );
+        }
+
+        $resenas = [
+            ['usuario_id' => $usuario->id, 'receta_id' => $recetas['Ramen casero especial']->id, 'calificacion' => 5, 'comentario' => 'El caldo queda profundo y la receta se entiende muy bien.'],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Cheesecake de frutos rojos']->id, 'calificacion' => 4, 'comentario' => 'Muy rico, solo cuidaria explicar mejor el horneado.'],
+            ['usuario_id' => $usuariosExtra['ana']->id, 'receta_id' => $recetas['Mole negro oaxaqueno']->id, 'calificacion' => 5, 'comentario' => 'Completa y con tecnica, excelente para receta premium.'],
+            ['usuario_id' => $usuariosExtra['sofia']->id, 'receta_id' => $recetas['Asado de boda estilo ChefIA']->id, 'calificacion' => 3, 'comentario' => 'Buen sabor, aunque los pasos podrian ser mas detallados.'],
+        ];
+
+        foreach ($resenas as $resena) {
+            $compra = Compra::where('usuario_id', $resena['usuario_id'])
+                ->where('receta_id', $resena['receta_id'])
+                ->whereIn('estado', ['pagado', 'enviado', 'entregado'])
+                ->first();
+
+            Resena::updateOrCreate(
+                [
+                    'usuario_id' => $resena['usuario_id'],
+                    'receta_id' => $resena['receta_id'],
+                ],
+                [
+                    'compra_id' => $compra?->id,
+                    'calificacion' => $resena['calificacion'],
+                    'comentario' => $resena['comentario'],
                 ]
             );
         }
