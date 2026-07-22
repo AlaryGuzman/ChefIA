@@ -39,7 +39,7 @@ class RecetaController extends Controller
             'pasos' => 'required|string',
             'tiempo_preparacion' => 'nullable|integer',
             'imagen' => 'nullable|string',
-            'imagen_archivo' => 'nullable|image|max:4096',
+            'imagen_archivo' => 'nullable|image|max:12288',
             'es_premium' => 'sometimes|boolean',
             'precio' => 'required_if:es_premium,true|nullable|numeric|min:0',
         ]);
@@ -86,7 +86,7 @@ class RecetaController extends Controller
             'pasos' => 'sometimes|required|string',
             'tiempo_preparacion' => 'nullable|integer',
             'imagen' => 'nullable|string',
-            'imagen_archivo' => 'nullable|image|max:4096',
+            'imagen_archivo' => 'nullable|image|max:12288',
             'es_premium' => 'sometimes|boolean',
             'precio' => 'required_if:es_premium,true|nullable|numeric|min:0',
         ]);
@@ -130,14 +130,28 @@ class RecetaController extends Controller
     {
         $tieneAcceso = !$receta->es_premium;
         $comprada = false;
+        $pedidoActivo = null;
 
         if ($user) {
             $esAutor = (int) $receta->usuario_id === (int) $user->id;
             $esAdmin = $user->role === 'admin';
-            $comprada = $receta->compras()
+
+            $pedido = $receta->compras()
                 ->where('usuario_id', $user->id)
-                ->where('estado', 'entregado')
-                ->exists();
+                ->whereNotIn('estado', ['cancelado', 'eliminado'])
+                ->latest()
+                ->first();
+
+            $comprada = $pedido?->estado === 'entregado';
+            $pedidoActivo = $pedido ? [
+                'id' => $pedido->id,
+                'estado' => $pedido->estado,
+                'metodo_pago' => $pedido->metodo_pago,
+                'referencia_pago' => $pedido->referencia_pago,
+                'referencia_efectivo' => $pedido->referencia_efectivo,
+                'created_at' => $pedido->created_at,
+            ] : null;
+
             $tieneAcceso = $tieneAcceso || $esAutor || $esAdmin || $comprada;
         }
 
@@ -147,6 +161,7 @@ class RecetaController extends Controller
 
         $receta->bloqueada = !$tieneAcceso;
         $receta->comprada = $comprada;
+        $receta->pedido_activo = $pedidoActivo;
 
         return $receta;
     }
@@ -155,7 +170,7 @@ class RecetaController extends Controller
     {
         if ($request->hasFile('imagen_archivo')) {
             $path = $request->file('imagen_archivo')->store('recetas', 'public');
-            $validated['imagen'] = $request->getSchemeAndHttpHost() . Storage::url($path);
+            $validated['imagen'] = Storage::url($path);
         }
 
         unset($validated['imagen_archivo']);

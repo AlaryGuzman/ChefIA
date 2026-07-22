@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Comentario;
 use App\Models\Notificacion;
+use App\Models\Receta;
 use Illuminate\Http\Request;
 
 class ComentarioController extends Controller
@@ -24,7 +25,24 @@ class ComentarioController extends Controller
             'contenido' => 'required|string',
         ]);
 
-        $validated['usuario_id'] = $request->user()->id;
+        $usuario = $request->user();
+        $receta = Receta::findOrFail($validated['receta_id']);
+
+        $tieneAcceso = !$receta->es_premium
+            || (int) $receta->usuario_id === (int) $usuario->id
+            || $usuario->role === 'admin'
+            || $receta->compras()
+                ->where('usuario_id', $usuario->id)
+                ->where('estado', 'entregado')
+                ->exists();
+
+        if (!$tieneAcceso) {
+            return response()->json([
+                'message' => 'Recibe esta receta premium antes de comentar.',
+            ], 403);
+        }
+
+        $validated['usuario_id'] = $usuario->id;
         $comentario = Comentario::create($validated);
 
         return response()->json($comentario, 201);

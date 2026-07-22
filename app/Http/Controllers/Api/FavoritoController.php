@@ -86,11 +86,15 @@ class FavoritoController extends Controller
             return null;
         }
 
-        $comprada = $user
+        $pedido = $user
             ? Compra::where('usuario_id', $user->id)
                 ->where('receta_id', $receta->id)
-                ->exists()
-            : false;
+                ->whereNotIn('estado', ['cancelado', 'eliminado'])
+                ->latest()
+                ->first()
+            : null;
+
+        $comprada = $pedido?->estado === 'entregado';
 
         $esPropia = $user && (int) $receta->usuario_id === (int) $user->id;
         $esAdmin = $user && $user->role === 'admin';
@@ -103,6 +107,14 @@ class FavoritoController extends Controller
 
         $receta->setAttribute('bloqueada', $bloqueada);
         $receta->setAttribute('comprada', $comprada);
+        $receta->setAttribute('pedido_activo', $pedido ? [
+            'id' => $pedido->id,
+            'estado' => $pedido->estado,
+            'metodo_pago' => $pedido->metodo_pago,
+            'referencia_pago' => $pedido->referencia_pago,
+            'referencia_efectivo' => $pedido->referencia_efectivo,
+            'created_at' => $pedido->created_at,
+        ] : null);
 
         return $receta;
     }
