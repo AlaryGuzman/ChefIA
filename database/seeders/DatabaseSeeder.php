@@ -188,18 +188,71 @@ class DatabaseSeeder extends Seeder
             Comentario::updateOrCreate($comentario, $comentario);
         }
 
-        $compraEntregada = Compra::create([
-            'usuario_id' => $usuarios['denis']->id,
-            'receta_id' => $recetas['Ramen casero especial']->id,
-            'precio_pagado' => 79.00,
-            'metodo_pago' => 'Tarjeta simulada',
-            'tarjeta_ultimos4' => '4242',
-            'referencia_pago' => 'CHF-SEED-0001',
-            'estado' => 'entregado',
-            'pagado_at' => now()->subDays(2),
-            'enviado_at' => now()->subDay(),
-            'entregado_at' => now(),
-        ]);
+        $comprasEntregadas = collect([
+            [
+                'usuario' => 'denis',
+                'receta' => 'Ramen casero especial',
+                'precio' => 79.00,
+                'ultimos4' => '4242',
+                'referencia' => 'CHF-SEED-0001',
+                'calificacion' => 5,
+                'comentario' => 'Excelente receta. El caldo queda profundo, los pasos son claros y el resultado se siente de restaurante.',
+            ],
+            [
+                'usuario' => 'maria',
+                'receta' => 'Cheesecake de frutos rojos',
+                'precio' => 89.00,
+                'ultimos4' => '5128',
+                'referencia' => 'CHF-SEED-0004',
+                'calificacion' => 4,
+                'comentario' => 'Muy buen postre, cremoso y bien explicado. Le bajaria un poco el dulce a la salsa, pero queda delicioso.',
+            ],
+            [
+                'usuario' => 'alex',
+                'receta' => 'Mole negro oaxaqueno',
+                'precio' => 149.00,
+                'ultimos4' => '7741',
+                'referencia' => 'CHF-SEED-0005',
+                'calificacion' => 2,
+                'comentario' => 'La receta tiene buen sabor, pero senti que el proceso es largo y faltan detalles para no quemar los chiles.',
+            ],
+            [
+                'usuario' => 'david',
+                'receta' => 'Asado de boda estilo ChefIA',
+                'precio' => 99.00,
+                'ultimos4' => '9033',
+                'referencia' => 'CHF-SEED-0006',
+                'calificacion' => 1,
+                'comentario' => 'No me funciono bien. La salsa quedo muy intensa y necesitaria instrucciones mas precisas para equilibrarla.',
+            ],
+        ])->mapWithKeys(function (array $datos) use ($usuarios, $recetas) {
+            $compra = Compra::create([
+                'usuario_id' => $usuarios[$datos['usuario']]->id,
+                'receta_id' => $recetas[$datos['receta']]->id,
+                'precio_pagado' => $datos['precio'],
+                'metodo_pago' => 'Tarjeta simulada',
+                'tarjeta_ultimos4' => $datos['ultimos4'],
+                'referencia_pago' => $datos['referencia'],
+                'estado' => 'entregado',
+                'pagado_at' => now()->subDays(3),
+                'enviado_at' => now()->subDays(2),
+                'entregado_at' => now()->subDay(),
+            ]);
+
+            Resena::updateOrCreate(
+                [
+                    'usuario_id' => $usuarios[$datos['usuario']]->id,
+                    'receta_id' => $recetas[$datos['receta']]->id,
+                ],
+                [
+                    'compra_id' => $compra->id,
+                    'calificacion' => $datos['calificacion'],
+                    'comentario' => $datos['comentario'],
+                ]
+            );
+
+            return [$datos['referencia'] => $compra];
+        });
 
         Compra::create([
             'usuario_id' => $usuarios['alary']->id,
@@ -221,16 +274,7 @@ class DatabaseSeeder extends Seeder
             'estado' => 'pagado',
             'pagado_at' => now()->subHours(4),
         ]);
-
-        Resena::updateOrCreate(
-            ['usuario_id' => $usuarios['denis']->id, 'receta_id' => $recetas['Ramen casero especial']->id],
-            [
-                'compra_id' => $compraEntregada->id,
-                'calificacion' => 5,
-                'comentario' => 'El caldo queda profundo y la receta llega muy clara.',
-            ]
-        );
-
+        
         $admin->notificaciones()->create([
             'tipo' => 'sistema',
             'titulo' => 'Datos de prueba cargados',
