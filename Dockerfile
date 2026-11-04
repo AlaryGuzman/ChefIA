@@ -27,3 +27,5 @@ RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framewor
     && chown -R www-data:www-data storage bootstrap/cache
 
 EXPOSE 10000
+
+CMD ["sh", "-c", "rm -f /etc/apache2/mods-enabled/mpm_*; a2enmod mpm_prefork; apache2ctl -M 2>&1 | grep -i mpm; exec apache2-foreground"]
