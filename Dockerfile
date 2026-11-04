@@ -5,7 +5,8 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-install pdo_mysql zip bcmath \
     && rm -rf /var/lib/apt/lists/*
 
-RUN a2enmod rewrite
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.* \
+    && a2enmod mpm_prefork rewrite
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
